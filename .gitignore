@@ -1,0 +1,18 @@
+/node_modules/
+/.next/
+/out/
+/coverage/
+*.tsbuildinfo
+/next-env.d.ts
+/.vercel/
+.env*
+!.env.example
+.DS_Store
+
+# Fuentes de trabajo y datos de INDAPO
+/Relevamiento 18:11:2026.md
+/Relevamientos antiguos/
+/Revision de alcance INDAPO.md
+/local/
+/supabase/.branches/
+/supabase/.temp/

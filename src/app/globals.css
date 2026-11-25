@@ -1,0 +1,23 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  background: #f5f7f5;
+  color: #1b2b22;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding: clamp(2rem, 9vw, 6rem) 1.5rem;
+  line-height: 1.55;
+}
+
+h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 8vw, 3.5rem);
+  line-height: 1.1;
+}
