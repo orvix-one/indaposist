@@ -14,6 +14,10 @@ Una aplicación modular en Next.js App Router y TypeScript, ejecutada en Vercel.
 | Ventas | Clientes, despachos, cuenta por cobrar y abonos FIFO. | Confirmar despacho. Previsualizar y confirmar abono. Consultar saldo. |
 | Reportes | Lecturas de compras y ventas y exportaciones. | Consultas y exportación con los mismos filtros y permisos. |
 
+### Backend
+
+Sin servicio aparte: el backend son Server Actions y Route Handlers de Next.js en Vercel. Las transacciones financieras son funciones SQL en Postgres, y el consumidor de OCR es un Route Handler disparado por cron de Supabase.
+
 ### Modelo lógico inicial
 
 | Conjunto | Entidades y relaciones previstas |
@@ -46,5 +50,5 @@ Los pagos a proveedores se asignan a boletas seleccionadas. En ventas se aplica 
 
 - Invitación de cuentas internas y alcance por unidad. Las decisiones de acceso usan autorizaciones del servidor y políticas de base de datos. Mantener tablas y objetos bajo mínimo privilegio, con RLS en esquemas expuestos y acceso explícito por operación. [RLS en Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - Storage privado con acceso por autorización y enlaces de vigencia acotada donde corresponda. Credenciales de OpenAI y Supabase privilegiadas solo en los procesos de servidor que las usan.
-- Entornos de desarrollo, pruebas y producción independientes. Los datos de prueba versionados son sintéticos. Logs de OCR y operaciones usan identificadores técnicos y omiten el contenido de boletas y comprobantes.
+- Entornos de desarrollo y producción independientes. Los datos de prueba versionados son sintéticos. Logs de OCR y operaciones usan identificadores técnicos y omiten el contenido de boletas y comprobantes.
 - Migraciones versionadas y verificación de acceso con cuentas autorizadas y denegadas. Definir respaldo, restauración y conciliación operativa antes del corte a producción.
