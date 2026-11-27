@@ -2,7 +2,7 @@
 
 import { emptyFields } from "../domain/fields";
 import type { FieldPath, HistoryEntry, IntakeDocument, Ticket, TicketStatus } from "../domain/types";
-import { currentUser } from "./catalogs";
+import { currentUser } from "@/modules/access";
 import { generateFields, generateSuggestions, misread } from "./generate";
 import { renderScanSvg } from "./scan";
 
@@ -43,7 +43,7 @@ function history(spec: SeedSpec, code: string): HistoryEntry[] {
     { id: `${code}-1`, at: at("09:12"), actor: currentUser.name, action: "created", to: "draft" },
   ];
   if (spec.ocr === "manual") {
-    entries.push({ id: `${code}-2`, at: at("09:13"), actor: "Sistema", action: "ocr_failed", comment: "Documento ilegible para el OCR." });
+    entries.push({ id: `${code}-2`, at: at("09:13"), actor: "Sistema", action: "ocr_failed", comment: "Documento ilegible." });
     return entries;
   }
   entries.push({ id: `${code}-2`, at: at("09:13"), actor: "Sistema", action: "ocr_suggested" });
@@ -141,7 +141,7 @@ export function seedState(): { tickets: Ticket[]; documents: IntakeDocument[] } 
         attempts: 1,
         uploadedAt: ticket.createdAt,
         ticketId: ticket.id,
-        error: spec.ocr === "manual" ? "El OCR no pudo leer el documento." : undefined,
+        error: spec.ocr === "manual" ? "No se pudo leer el documento." : undefined,
       },
     ];
   });

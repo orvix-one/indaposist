@@ -1,4 +1,4 @@
-/* Datos sintéticos con los mismos ids que mock/catalogs.ts, para conectar la boleta sin migrar referencias. */
+/* Proveedores sintéticos iniciales. Las boletas de ejemplo usan estos mismos ids. */
 
 import type { Supplier } from "../domain/supplier";
 

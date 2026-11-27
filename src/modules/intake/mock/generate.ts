@@ -1,10 +1,10 @@
-/* Generador determinista de boletas y sugerencias de OCR sintéticas, usado por el seed y por el OCR simulado. */
+/* Generador determinista de boletas y sugerencias de OCR sintéticas para el estado inicial. */
 
 import { emptyFields } from "../domain/fields";
 import { CONFIDENCE_THRESHOLD } from "../domain/rules";
 import type { FieldPath, QualityKey, Suggestions, TicketFields } from "../domain/types";
 import { QUALITY_KEYS } from "../domain/types";
-import { suppliers } from "./catalogs";
+import { seedSuppliers } from "./supplier-seed";
 
 export function createRandom(seed: number) {
   let state = seed >>> 0;
@@ -32,7 +32,7 @@ const PLATE_LETTERS = ["KTR", "LPB", "HSD", "GZX", "NBC", "MRT"];
 
 export function generateFields(seed: number, options: { weighedAt: string; officeArrivalDate?: string }): TicketFields {
   const random = createRandom(seed);
-  const supplier = random.pick(suppliers);
+  const supplier = random.pick(seedSuppliers);
   const gross = random.int(38_000, 45_500);
   const tare = random.int(13_800, 16_200);
   const net = gross - tare;
@@ -63,7 +63,7 @@ export function generateFields(seed: number, options: { weighedAt: string; offic
     ...fields,
     issuerId: site === "cc" ? "cc" : "sj",
     siteId: site,
-    campaignId: "v26",
+    campaignId: "i26",
     productId: "soy",
     analysisNumber: String(random.int(10_000, 19_999)),
     entryNumber: String(random.int(200_000, 299_999)),

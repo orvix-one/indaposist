@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   canTransition,
+  findDuplicateTicket,
   parseDecimal,
   pendingVerification,
   setFieldValue,
@@ -64,6 +65,13 @@ describe("weightChecks", () => {
   it("detecta descuento distinto de la suma de calidad", () => {
     assert.equal(weightChecks(filled({ discountKg: "500" })).discount.ok, false);
   });
+
+  it("tolera hasta 1 kg por el redondeo de los descuentos de calidad", () => {
+    const base = emptyFields().quality;
+    const quality = { ...base, moisture: { percent: "14,2", discountKg: "320,4" }, impurity: { percent: "1,6", discountKg: "160,2" } };
+    assert.equal(weightChecks(filled({ quality, discountKg: "481" })).discount.ok, true);
+    assert.equal(weightChecks(filled({ quality, discountKg: "482" })).discount.ok, false);
+  });
 });
 
 describe("validateForSubmit", () => {
@@ -104,5 +112,18 @@ describe("canTransition", () => {
 
   it("impide saltar de borrador a aprobada", () => {
     assert.equal(canTransition("draft", "approved"), false);
+  });
+});
+
+describe("findDuplicateTicket", () => {
+  const existing = [{ id: "bl-1", fields: filled({ issuerId: "pc", scaleTicket: "0088445", folio: "" }) }];
+
+  it("detecta la misma boleta del mismo emisor aunque cambien ceros y espacios", () => {
+    assert.equal(findDuplicateTicket(existing, { issuerId: "pc", scaleTicket: "88 445", folio: "" }), "bl-1");
+  });
+
+  it("no confunde boletas de otro emisor ni sin número", () => {
+    assert.equal(findDuplicateTicket(existing, { issuerId: "sj", scaleTicket: "88445", folio: "" }), undefined);
+    assert.equal(findDuplicateTicket(existing, { issuerId: "pc", scaleTicket: "", folio: "" }), undefined);
   });
 });

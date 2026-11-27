@@ -5,7 +5,6 @@ import { createContext, useContext, type ReactNode } from "react";
 import { Badge, Field, Input, Select, Textarea, cx } from "@/shared/ui";
 import { CONFIDENCE_THRESHOLD, getFieldValue } from "../domain/rules";
 import type { FieldPath, Suggestion, TicketFields } from "../domain/types";
-import type { CatalogItem } from "../mock/catalogs";
 import { fieldId, fieldLabel } from "./labels";
 import styles from "./intake.module.css";
 
@@ -81,7 +80,7 @@ function OcrMeta({ path }: { path: FieldPath }) {
       </span>
     );
   }
-  return <span className={styles.ocrMeta}>OCR {percent(field.suggestion.confidence)}</span>;
+  return <span className={styles.ocrMeta}>Confianza {percent(field.suggestion.confidence)}</span>;
 }
 
 type ReviewFieldProps = {
@@ -91,7 +90,7 @@ type ReviewFieldProps = {
   numeric?: boolean;
   trailing?: ReactNode;
   leading?: ReactNode;
-  options?: CatalogItem[];
+  options?: { id: string; name: string }[];
   placeholder?: string;
   hint?: ReactNode;
   optional?: boolean;
@@ -118,7 +117,7 @@ export function ReviewField({
   const field = useReviewField(path);
   const suggestionText =
     field.suggestion && field.edited
-      ? `OCR leyó: ${options?.find((option) => option.id === field.suggestion!.value)?.name ?? field.suggestion.value}`
+      ? `Se leyó: ${options?.find((option) => option.id === field.suggestion!.value)?.name ?? field.suggestion.value}`
       : undefined;
   const describedBy = field.error ? `${field.id}-error` : hint || suggestionText ? `${field.id}-hint` : undefined;
 

@@ -1,4 +1,3 @@
-import { ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cx } from "./cx";
@@ -47,18 +46,6 @@ function BrandMark() {
     <span className={styles.brandMark} aria-hidden>
       I
     </span>
-  );
-}
-
-export function SidebarContext({ label, value, disabled }: { label: string; value: string; disabled?: boolean }) {
-  return (
-    <button type="button" className={styles.context} disabled={disabled}>
-      <span className={styles.contextText}>
-        <span className={styles.contextLabel}>{label}</span>
-        <span className={styles.contextValue}>{value}</span>
-      </span>
-      <ChevronsUpDown aria-hidden />
-    </button>
   );
 }
 

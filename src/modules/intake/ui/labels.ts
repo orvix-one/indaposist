@@ -21,8 +21,8 @@ export const documentStatusMeta: Record<DocumentStatus, { label: string; tone: T
 
 export const historyLabels: Record<HistoryAction, string> = {
   created: "Creó la boleta",
-  ocr_suggested: "OCR completó las sugerencias",
-  ocr_failed: "OCR sin resultado; carga manual",
+  ocr_suggested: "Leyó el escaneo y sugirió datos",
+  ocr_failed: "No se pudo leer el escaneo; carga manual",
   draft_saved: "Guardó el borrador",
   submitted: "Envió a revisión",
   approved: "Aprobó la boleta",
@@ -87,6 +87,12 @@ const kgFormat = new Intl.NumberFormat("es-BO", { maximumFractionDigits: 0, useG
 
 export function formatKg(value: number | null): string {
   return value === null ? "—" : kgFormat.format(value);
+}
+
+const kgExactFormat = new Intl.NumberFormat("es-BO", { maximumFractionDigits: 2, useGrouping: "always" });
+
+export function formatKgExact(value: number | null): string {
+  return value === null ? "—" : kgExactFormat.format(value);
 }
 
 export function formatKgRaw(raw: string): string {

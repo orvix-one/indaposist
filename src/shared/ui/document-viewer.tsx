@@ -25,6 +25,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { PDF_WASM_URL, loadPdfjs } from "../document-pages/pdfjs";
 import { Button } from "./button";
 import { cx } from "./cx";
 import styles from "./document-viewer.module.css";
@@ -38,16 +39,6 @@ type Rotation = 0 | 90 | 180 | 270;
 
 const ZOOM_STEPS = [0.25, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 3, 4];
 const STAGE_PADDING = 24;
-
-let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
-
-function loadPdfjs() {
-  pdfjsPromise ??= import("pdfjs-dist").then((pdfjs) => {
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-    return pdfjs;
-  });
-  return pdfjsPromise;
-}
 
 type ViewerProps = {
   src: string;
@@ -100,7 +91,7 @@ function ViewerBody({ src, kind, name, toolbarEnd, className }: ViewerProps) {
     loadPdfjs()
       .then((pdfjs) => {
         if (cancelled) return null;
-        loadingTask = pdfjs.getDocument({ url: src });
+        loadingTask = pdfjs.getDocument({ url: src, wasmUrl: PDF_WASM_URL });
         return loadingTask.promise;
       })
       .then((doc) => {

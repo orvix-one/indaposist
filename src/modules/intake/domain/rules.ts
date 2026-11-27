@@ -3,8 +3,8 @@ import { QUALITY_KEYS } from "./types.ts";
 
 export const CONFIDENCE_THRESHOLD = 0.85;
 
-// Tolerancia aritmética pendiente de aprobar con Administración (validacion.md); hasta entonces, exacta.
-export const WEIGHT_TOLERANCE_KG = 0;
+// Absorbe el redondeo de los descuentos de calidad impresos con decimales; valor provisorio hasta que Administración lo confirme.
+export const WEIGHT_TOLERANCE_KG = 1;
 
 export const SUBMIT_REQUIRED: FieldPath[] = [
   "issuerId",
@@ -142,4 +142,21 @@ export function validateForSubmit(
 
 export function hasIssues(issues: SubmitIssues): boolean {
   return Object.keys(issues.fieldErrors).length > 0 || issues.pending.length > 0;
+}
+
+function identityPart(raw: string): string {
+  return raw.replace(/[\s.\-]/g, "").replace(/^0+/, "").toUpperCase();
+}
+
+export function findDuplicateTicket(
+  tickets: Pick<Ticket, "id" | "fields">[],
+  fields: Pick<TicketFields, "issuerId" | "scaleTicket" | "folio">,
+): string | undefined {
+  if (!fields.issuerId) return undefined;
+  const keys = (["scaleTicket", "folio"] as const)
+    .map((name) => [name, identityPart(fields[name])] as const)
+    .filter(([, value]) => value !== "");
+  if (keys.length === 0) return undefined;
+  const [name, value] = keys[0];
+  return tickets.find((ticket) => ticket.fields.issuerId === fields.issuerId && identityPart(ticket.fields[name]) === value)?.id;
 }

@@ -1,0 +1,48 @@
+.trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-tertiary);
+  vertical-align: middle;
+  cursor: help;
+}
+
+.trigger:hover {
+  color: var(--color-text-secondary);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bubble {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: 240px;
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--stone-900);
+  box-shadow: var(--shadow-md);
+  color: var(--stone-50);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: 1.4;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.bubble[data-below] {
+  transform: translate(-50%, 0);
+}

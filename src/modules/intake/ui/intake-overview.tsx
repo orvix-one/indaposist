@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { Card, CardBody, CardHeader, Mono, PageHeader, Stat, StatGrid, buttonClass } from "@/shared/ui";
 import { parseDecimal, pendingVerification } from "../domain/rules";
-import { currentUser } from "../mock/catalogs";
+import { currentUser } from "@/modules/access";
 import { useIntake } from "./intake-store";
 import { formatInstant, formatKg, historyLabels } from "./labels";
 import styles from "./intake.module.css";

@@ -3,7 +3,10 @@
 import { parseDecimal } from "../domain/rules";
 import type { QualityKey, TicketFields } from "../domain/types";
 import { QUALITY_KEYS } from "../domain/types";
-import { campaigns, catalogName, issuers, products, sites, supplierById } from "./catalogs";
+import { campaignLabel, seedCampaigns, seedIssuers, seedProducts, seedSites } from "@/modules/catalogs";
+import { seedSuppliers } from "./supplier-seed";
+
+const nameOf = (rows: { id: string; name: string }[], id: string) => rows.find((row) => row.id === id)?.name ?? "";
 
 const QUALITY_PRINT: Record<QualityKey, string> = {
   moisture: "HUMEDAD",
@@ -36,15 +39,16 @@ export function renderScanSvg(fields: TicketFields, options: { tilt?: number; co
   const width = 850;
   const height = 1100;
   const tilt = options.tilt ?? -0.5;
-  const supplier = supplierById(fields.supplierId);
+  const supplier = seedSuppliers.find((row) => row.id === fields.supplierId);
+  const campaign = seedCampaigns.find((row) => row.id === fields.campaignId);
 
   const info: [string, string][] = [
     ["FECHA/HORA", printedDate(fields.weighedAt)],
     ["NRO. INGRESO", fields.entryNumber],
     ["ANÁLISIS NRO.", fields.analysisNumber],
-    ["PRODUCTO", catalogName(products, fields.productId).toUpperCase()],
-    ["CAMPAÑA", catalogName(campaigns, fields.campaignId).toUpperCase()],
-    ["ACOPIO", catalogName(sites, fields.siteId).toUpperCase()],
+    ["PRODUCTO", nameOf(seedProducts, fields.productId).toUpperCase()],
+    ["CAMPAÑA", (campaign ? campaignLabel(campaign, seedProducts) : "").toUpperCase()],
+    ["ACOPIO", nameOf(seedSites, fields.siteId).toUpperCase()],
     ["PROPIETARIO", fields.owner.toUpperCase()],
     ["PROVEEDOR", (supplier?.name ?? "").toUpperCase()],
     ["PROCEDENCIA", fields.origin.toUpperCase()],
@@ -101,7 +105,7 @@ export function renderScanSvg(fields: TicketFields, options: { tilt?: number; co
 <rect x="30" y="30" width="790" height="1040" fill="#fbfaf4"/>
 <rect x="30" y="30" width="790" height="1040" filter="url(#paper)"/>
 <text x="70" y="98" fill="${ink}" font-size="30" font-weight="700" letter-spacing="2">BOLETA DE PESAJE</text>
-<text x="70" y="128" fill="${faint}" font-size="16">${escape(catalogName(issuers, fields.issuerId).toUpperCase())} · SISTEMA DE BALANZA</text>
+<text x="70" y="128" fill="${faint}" font-size="16">${escape(nameOf(seedIssuers, fields.issuerId).toUpperCase())} · SISTEMA DE BALANZA</text>
 <text x="780" y="92" fill="${ink}" font-size="15" text-anchor="end">TIQUETE N°</text>
 <text x="780" y="120" fill="#8a1f1a" font-size="26" font-weight="700" text-anchor="end">${escape(fields.scaleTicket)}</text>
 <text x="780" y="146" fill="${faint}" font-size="14" text-anchor="end">FOLIO ${escape(fields.folio)}</text>

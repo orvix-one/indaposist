@@ -4,7 +4,6 @@ export { IntakeProvider, useIntakeSummary } from "./ui/intake-store";
 export { TicketReview } from "./ui/ticket-review";
 export { TicketsList } from "./ui/tickets-list";
 export { UploadInbox } from "./ui/upload-inbox";
-export { currentUser } from "./mock/catalogs";
 export type { Supplier, SupplierInput } from "./domain/supplier";
 export { SuppliersProvider, useSuppliers } from "./ui/suppliers-store";
 export { SuppliersList } from "./ui/suppliers-list";

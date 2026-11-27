@@ -2,7 +2,7 @@
 
 /* Proveedores sobre un repositorio en memoria. Se reinicia al recargar. */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createMemoryRepository } from "@/modules/catalogs";
 import { validateSupplier, type Supplier, type SupplierField, type SupplierInput } from "../domain/supplier";
 import { seedSuppliers } from "../mock/supplier-seed";
@@ -15,21 +15,24 @@ type SuppliersContextValue = {
   save(input: SupplierInput, id?: string): Promise<SupplierSaveResult>;
   remove(id: string): Promise<boolean>;
   usage(id: string): string | null;
+  registerReferenceCheck(check: SupplierReferenceCheck): () => void;
 };
 
-const SuppliersContext = createContext<SuppliersContextValue | null>(null);
-const notReferenced = () => false;
+export type SupplierReferenceCheck = (supplierId: string) => boolean;
 
-export function SuppliersProvider({
-  children,
-  isReferenced = notReferenced,
-}: {
-  children: ReactNode;
-  isReferenced?: (supplierId: string) => boolean;
-}) {
+const SuppliersContext = createContext<SuppliersContextValue | null>(null);
+export function SuppliersProvider({ children }: { children: ReactNode }) {
   const [repo] = useState(() => createMemoryRepository<Supplier, SupplierInput>(seedSuppliers, { prefix: "sup" }));
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+  const checksRef = useRef(new Set<SupplierReferenceCheck>());
+
+  const registerReferenceCheck = useCallback((check: SupplierReferenceCheck) => {
+    checksRef.current.add(check);
+    return () => {
+      checksRef.current.delete(check);
+    };
+  }, []);
 
   const refresh = useCallback(async () => setSuppliers(await repo.list()), [repo]);
 
@@ -52,7 +55,10 @@ export function SuppliersProvider({
     [suppliers, repo, refresh],
   );
 
-  const usage = useCallback((id: string) => (isReferenced(id) ? "Tiene boletas asociadas." : null), [isReferenced]);
+  const usage = useCallback(
+    (id: string) => ([...checksRef.current].some((check) => check(id)) ? "Tiene boletas asociadas." : null),
+    [],
+  );
 
   const remove = useCallback(
     async (id: string) => {
@@ -64,7 +70,10 @@ export function SuppliersProvider({
     [repo, refresh, usage],
   );
 
-  const value = useMemo(() => ({ suppliers, loading, save, remove, usage }), [suppliers, loading, save, remove, usage]);
+  const value = useMemo(
+    () => ({ suppliers, loading, save, remove, usage, registerReferenceCheck }),
+    [suppliers, loading, save, remove, usage, registerReferenceCheck],
+  );
 
   return <SuppliersContext.Provider value={value}>{children}</SuppliersContext.Provider>;
 }

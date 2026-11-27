@@ -4,6 +4,7 @@
 /coverage/
 *.tsbuildinfo
 /next-env.d.ts
+/public/pdfjs/
 /.vercel/
 .env*
 !.env.example

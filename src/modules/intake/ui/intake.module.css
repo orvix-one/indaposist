@@ -355,6 +355,9 @@
 }
 
 .actionWarning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 6px;
   margin-left: -6px;
   border: 0;
@@ -662,4 +665,12 @@
   .archiveRow {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.groupRow {
+  background: var(--color-surface-muted);
+}
+
+.nestedCell {
+  padding-left: var(--space-6);
 }

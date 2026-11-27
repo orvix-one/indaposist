@@ -58,6 +58,7 @@
 }
 
 .context {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -72,17 +73,25 @@
   transition: background-color var(--duration-fast) var(--ease);
 }
 
-.context:disabled {
+.context[data-disabled] {
   cursor: default;
 }
 
-.context:hover:not(:disabled) {
+.context:hover:not([data-disabled]) {
   background: var(--sidebar-hover);
 }
 
-.context:focus-visible {
+.context:focus-within {
   outline: none;
   box-shadow: 0 0 0 2px var(--gold-300);
+}
+
+.contextSelect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: inherit;
 }
 
 .contextText {
@@ -106,7 +115,7 @@
   white-space: nowrap;
 }
 
-.context:disabled svg {
+.context[data-disabled] svg {
   display: none;
 }
 

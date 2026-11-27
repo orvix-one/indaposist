@@ -6,6 +6,19 @@ export type DocumentKind = "image" | "pdf";
 
 export type OcrOutcome = "suggested" | "manual";
 
+export type TicketFormat = "indapo" | "cargill" | "unknown";
+
+export type ExtractionUsage = { inputTokens: number; outputTokens: number; costUsd: number | null; attempts: number };
+
+export type DocumentSource = { fileName: string; page: number; pageCount: number };
+
+export type TicketReadings = {
+  format: TicketFormat;
+  site: string;
+  supplierName: string;
+  supplierTaxId: string;
+};
+
 export const QUALITY_KEYS = ["moisture", "impurity", "damaged", "broken", "green", "other"] as const;
 export type QualityKey = (typeof QUALITY_KEYS)[number];
 
@@ -90,6 +103,7 @@ export type Ticket = {
   ocr: OcrOutcome;
   fields: TicketFields;
   suggestions: Suggestions;
+  readings?: TicketReadings;
   verified: FieldPath[];
   document: DocumentRef | null;
   history: HistoryEntry[];
@@ -110,4 +124,7 @@ export type IntakeDocument = {
   ticketId?: string;
   duplicateOfTicketId?: string;
   error?: string;
+  source?: DocumentSource;
+  format?: TicketFormat;
+  usage?: ExtractionUsage;
 };

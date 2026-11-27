@@ -3,8 +3,8 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypeScript from "eslint-config-next/typescript";
 
 const moduleInternals = {
-  group: ["@/modules/*/*"],
-  message: "Import from module's public API: @/modules/<modulo>.",
+  group: ["@/modules/*/*", "!@/modules/*/server"],
+  message: "Import from module's public API: @/modules/<modulo> (or @/modules/<modulo>/server on the server).",
 };
 
 export default defineConfig([
@@ -29,5 +29,5 @@ export default defineConfig([
       ],
     },
   },
-  globalIgnores([".next/**", "out/**", "coverage/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "out/**", "coverage/**", "next-env.d.ts", "public/pdfjs/**"]),
 ]);

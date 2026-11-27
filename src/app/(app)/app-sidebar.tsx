@@ -16,16 +16,30 @@ import {
   Wallet,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { currentUser, useIntakeSummary } from "@/modules/intake";
+import { currentUser } from "@/modules/access";
+import { campaignLabel, useCatalogs } from "@/modules/catalogs";
+import { useIntakeSummary } from "@/modules/intake";
 import { Button, NavItem, NavSection, Sidebar, SidebarContext, SidebarUser } from "@/shared/ui";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { drafts } = useIntakeSummary();
+  const { campaigns, products, currentCampaignId, setCurrentCampaignId } = useCatalogs();
+  const campaignOptions = campaigns
+    .filter((campaign) => campaign.status === "open" || campaign.id === currentCampaignId)
+    .map((campaign) => ({ value: campaign.id, label: campaignLabel(campaign, products) }));
 
   return (
     <Sidebar
-      context={<SidebarContext label="Campaña" value="Verano 2025/26 · Soya" disabled />}
+      context={
+        <SidebarContext
+          label="Campaña"
+          value={currentCampaignId}
+          options={campaignOptions}
+          onValueChange={setCurrentCampaignId}
+          placeholder="Sin campaña abierta"
+        />
+      }
       footer={
         <SidebarUser
           name={currentUser.name}
