@@ -1,0 +1,121 @@
+.alert {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--alert-border);
+  border-left: 3px solid var(--alert-solid);
+  border-radius: var(--radius-sm);
+  background: var(--alert-bg);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--alert-solid);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 600;
+  color: var(--alert-fg);
+}
+
+.text {
+  color: var(--color-text-secondary);
+}
+
+.title + .text {
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.neutral {
+  --alert-fg: var(--color-text);
+  --alert-bg: var(--color-surface-muted);
+  --alert-border: var(--color-border);
+  --alert-solid: var(--stone-500);
+}
+
+.info {
+  --alert-fg: var(--color-info-fg);
+  --alert-bg: var(--color-info-bg);
+  --alert-border: var(--color-info-border);
+  --alert-solid: var(--color-info-solid);
+}
+
+.success {
+  --alert-fg: var(--color-success-fg);
+  --alert-bg: var(--color-success-bg);
+  --alert-border: var(--color-success-border);
+  --alert-solid: var(--color-success-solid);
+}
+
+.warning {
+  --alert-fg: var(--color-warning-fg);
+  --alert-bg: var(--color-warning-bg);
+  --alert-border: var(--color-warning-border);
+  --alert-solid: var(--color-warning-solid);
+}
+
+.danger {
+  --alert-fg: var(--color-danger-fg);
+  --alert-bg: var(--color-danger-bg);
+  --alert-border: var(--color-danger-border);
+  --alert-solid: var(--color-danger-solid);
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text-secondary);
+}
+
+.emptyIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.emptyTitle {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.emptyText {
+  max-width: 360px;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.emptyActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
