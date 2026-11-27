@@ -1,0 +1,477 @@
+"use client";
+
+import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, ScanSearch, Send } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Dialog,
+  DocumentViewer,
+  EmptyState,
+  Field,
+  FormGrid,
+  Mono,
+  PageHeader,
+  Radio,
+  Select,
+  Switch,
+  Textarea,
+  buttonClass,
+  cx,
+  formLayout,
+} from "@/shared/ui";
+import {
+  hasIssues,
+  isEditable,
+  pendingVerification,
+  setFieldValue,
+  validateForSubmit,
+  weightChecks,
+  type SubmitIssues,
+  type WeightCheck,
+} from "../domain/rules";
+import type { FieldPath, Ticket, TicketFields } from "../domain/types";
+import { campaigns, catalogName, currentUser, issuers, products, sites, supplierById, suppliers } from "../mock/catalogs";
+import { useIntake } from "./intake-store";
+import { fieldId, fieldLabel, formatBusinessDate, formatKg, formatKgRaw, ticketStatusMeta } from "./labels";
+import { QualityTable } from "./quality-table";
+import { ReviewField, ReviewProvider, type ReviewContextValue } from "./review-context";
+import { TicketHistory } from "./ticket-history";
+import styles from "./intake.module.css";
+
+const supplierOptions = suppliers.map((supplier) => ({ id: supplier.id, name: `${supplier.name} · ${supplier.taxId}` }));
+
+export function TicketReview({ ticketId }: { ticketId: string }) {
+  const { tickets } = useIntake();
+  const ticket = tickets.find((item) => item.id === ticketId);
+
+  if (!ticket) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<FileSearch aria-hidden />}
+          title="Boleta no encontrada"
+          description="Puede que se haya cargado en otra sesión: mientras no hay base de datos, lo cargado se pierde al recargar."
+          actions={
+            <Link href="/boletas" className={buttonClass({ size: "sm" })}>
+              Volver a boletas
+            </Link>
+          }
+        />
+      </Card>
+    );
+  }
+
+  return <ReviewScreen key={ticket.id} ticket={ticket} />;
+}
+
+function ReviewScreen({ ticket }: { ticket: Ticket }) {
+  const { saveDraft, submitForReview } = useIntake();
+  const [fields, setFields] = useState<TicketFields>(ticket.fields);
+  const [verified, setVerified] = useState<FieldPath[]>(ticket.verified);
+  const [issues, setIssues] = useState<SubmitIssues | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [comment, setComment] = useState("");
+  const [notice, setNotice] = useState<"saved" | "submitted" | null>(null);
+
+  const editable = isEditable(ticket.status);
+  const dirty = JSON.stringify(fields) !== JSON.stringify(ticket.fields) || verified.join() !== ticket.verified.join();
+  const pending = pendingVerification(ticket, fields, verified);
+  const checks = weightChecks(fields);
+  const liveIssues = issues ? validateForSubmit(ticket, fields, verified) : null;
+  const errorCount = liveIssues ? Object.keys(liveIssues.fieldErrors).length : 0;
+  const supplier = supplierById(fields.supplierId);
+
+  const setValue = useCallback((path: FieldPath, value: string) => {
+    setFields((current) => setFieldValue(current, path, value));
+    setNotice(null);
+  }, []);
+
+  const confirm = useCallback((paths: FieldPath[]) => {
+    setVerified((current) => Array.from(new Set([...current, ...paths])));
+    setNotice(null);
+  }, []);
+
+  const review: ReviewContextValue = useMemo(
+    () => ({
+      fields,
+      suggestions: ticket.suggestions,
+      verified,
+      errors: liveIssues?.fieldErrors ?? {},
+      readOnly: !editable,
+      setValue,
+      confirm,
+    }),
+    [fields, ticket.suggestions, verified, liveIssues?.fieldErrors, editable, setValue, confirm],
+  );
+
+  const focusNextPending = () => {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>("[data-pending]"));
+    const index = nodes.findIndex((node) => node === document.activeElement);
+    const next = nodes[(index + 1) % nodes.length];
+    next?.scrollIntoView({ behavior: "smooth", block: "center" });
+    next?.focus({ preventScroll: true });
+  };
+
+  const save = useCallback(() => {
+    if (!editable) return;
+    saveDraft(ticket.id, fields, verified);
+    setNotice("saved");
+  }, [editable, saveDraft, ticket.id, fields, verified]);
+
+  const requestSubmit = () => {
+    const result = validateForSubmit(ticket, fields, verified);
+    setIssues(result);
+    if (!hasIssues(result)) {
+      setDialogOpen(true);
+      return;
+    }
+    const firstError = (Object.keys(result.fieldErrors) as FieldPath[])
+      .map((path) => document.getElementById(fieldId(path)))
+      .filter((element): element is HTMLElement => element !== null)
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))[0];
+    if (firstError) {
+      firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstError.focus({ preventScroll: true });
+    } else focusNextPending();
+  };
+
+  const submit = () => {
+    submitForReview(ticket.id, fields, verified, comment);
+    setDialogOpen(false);
+    setComment("");
+    setNotice("submitted");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        save();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [save]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  const status = ticketStatusMeta[ticket.status];
+  const lastObservation = [...ticket.history].reverse().find((entry) => entry.action === "observed");
+
+  return (
+    <ReviewProvider value={review}>
+      <PageHeader
+        breadcrumbs={[{ label: "Recepción" }, { label: "Boletas", href: "/boletas" }, { label: ticket.code }]}
+        title={
+          <span className={styles.titleRow}>
+            Boleta <Mono>{ticket.code}</Mono>
+            <Badge tone={status.tone} dot>
+              {status.label}
+            </Badge>
+          </span>
+        }
+        description={[supplier?.name ?? "Proveedor sin identificar", fields.scaleTicket && `Tiquete ${fields.scaleTicket}`, catalogName(issuers, fields.issuerId)]
+          .filter(Boolean)
+          .join(" · ")}
+      />
+
+      <div className={styles.reviewGrid}>
+        <div className={styles.viewerPane}>
+          {ticket.document ? (
+            <DocumentViewer
+              src={ticket.document.url}
+              kind={ticket.document.kind}
+              name={ticket.document.synthetic ? `${ticket.document.name} · documento de ejemplo` : ticket.document.name}
+            />
+          ) : (
+            <Card className={styles.viewerEmpty}>
+              <EmptyState icon={<FileSearch aria-hidden />} title="Sin documento" description="Esta boleta no tiene escaneo asociado." />
+            </Card>
+          )}
+        </div>
+
+        <div className={styles.formPane}>
+          {notice === "submitted" && (
+            <Alert tone="success" title="Boleta enviada a revisión">
+              Supervisión puede aprobarla, observarla o rechazarla. Mientras tanto queda bloqueada para edición.
+            </Alert>
+          )}
+          {notice !== "submitted" && ticket.status === "in_review" && (
+            <Alert tone="info" title="En revisión">
+              La edición está bloqueada hasta que Supervisión la apruebe u observe.
+            </Alert>
+          )}
+          {ticket.status === "observed" && (
+            <Alert tone="warning" title="Boleta observada">
+              {lastObservation?.comment ?? "Corrige los datos señalados y vuelve a enviarla a revisión."}
+            </Alert>
+          )}
+          {editable && ticket.ocr === "suggested" && Object.keys(ticket.suggestions).length > 0 && (
+            <Alert tone="neutral" title="Sugerencias de OCR (simulado)">
+              Compara cada valor con el documento. Los campos con menos de 85 % de confianza están resaltados: corrígelos o confírmalos.
+            </Alert>
+          )}
+          {editable && ticket.ocr === "manual" && (
+            <Alert tone="warning" title="Carga manual">
+              El OCR no pudo leer este documento. Completa los datos a partir del escaneo.
+            </Alert>
+          )}
+
+          <fieldset className={styles.formFieldset} disabled={!editable}>
+            <Card>
+              <CardHeader title="Identificación" description="Datos impresos en la cabecera de la boleta." />
+              <CardBody>
+                <FormGrid>
+                  <ReviewField path="issuerId" options={issuers} />
+                  <ReviewField path="siteId" options={sites} />
+                  <ReviewField path="campaignId" options={campaigns} />
+                  <ReviewField path="productId" options={products} />
+                  <ReviewField path="scaleTicket" />
+                  <ReviewField path="weighedAt" type="datetime-local" />
+                  <ReviewField path="entryNumber" optional />
+                  <ReviewField path="analysisNumber" optional />
+                  <ReviewField path="folio" optional />
+                </FormGrid>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader title="Proveedor y transporte" />
+              <CardBody>
+                <FormGrid>
+                  <ReviewField path="supplierId" options={supplierOptions} className={formLayout.span2} />
+                  <ReviewField path="owner" optional hint="Titular impreso en la boleta, si difiere del proveedor." />
+                  <ReviewField path="origin" optional />
+                  <ReviewField path="driver" optional />
+                  <ReviewField path="driverId" optional />
+                  <ReviewField path="vehicle" optional />
+                  <ReviewField path="plate" />
+                </FormGrid>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader title="Pesaje" description="Kilogramos tal como figuran en la boleta." />
+              <CardBody className={styles.weights}>
+                <FormGrid columns={3}>
+                  <ReviewField path="grossKg" numeric trailing="kg" />
+                  <ReviewField path="tareKg" numeric trailing="kg" />
+                  <ReviewField path="netKg" numeric trailing="kg" />
+                  <ReviewField path="discountKg" numeric trailing="kg" />
+                  <ReviewField path="liquidKg" numeric trailing="kg" />
+                </FormGrid>
+                <div className={styles.checks} aria-live="polite">
+                  <WeightCheckRow label="Neto = bruto − tara" check={checks.net} onApply={(value) => setValue("netKg", value)} readOnly={!editable} />
+                  <WeightCheckRow label="Descuento = suma de calidad" check={checks.discount} onApply={(value) => setValue("discountKg", value)} readOnly={!editable} />
+                  <WeightCheckRow label="Líquido = neto − descuento" check={checks.liquid} onApply={(value) => setValue("liquidKg", value)} readOnly={!editable} />
+                </div>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader title="Calidad" description="Resultados del análisis y descuento aplicado por concepto." />
+              <QualityTable />
+            </Card>
+
+            <OfficeCard fields={fields} setFields={setFields} errors={liveIssues?.fieldErrors ?? {}} />
+          </fieldset>
+
+          <Card>
+            <CardHeader title="Historial" description="Quién hizo qué y cuándo." />
+            <CardBody>
+              <TicketHistory entries={ticket.history} />
+            </CardBody>
+          </Card>
+
+          {editable && (
+            <div className={styles.actionBar}>
+              <div className={styles.actionStatus}>
+                {liveIssues && errorCount > 0 ? (
+                  <span className={styles.actionError}>
+                    <CircleX aria-hidden />
+                    {errorCount === 1 ? "1 campo por corregir" : `${errorCount} campos por corregir`}
+                  </span>
+                ) : pending.length > 0 ? (
+                  <button type="button" className={styles.actionWarning} onClick={focusNextPending} title="Ir al siguiente campo por verificar">
+                    <ScanSearch aria-hidden />
+                    {pending.length === 1 ? "1 campo por verificar" : `${pending.length} campos por verificar`}
+                    <ArrowRight aria-hidden />
+                  </button>
+                ) : dirty ? (
+                  <span>Cambios sin guardar</span>
+                ) : notice === "saved" ? (
+                  <span className={styles.actionOk}>
+                    <CircleCheck aria-hidden />
+                    Borrador guardado
+                  </span>
+                ) : (
+                  <span>Sin cambios</span>
+                )}
+              </div>
+              <Button onClick={save} disabled={!dirty} title="Guardar borrador (⌘S)">
+                Guardar borrador
+              </Button>
+              <Button variant="primary" leadingIcon={<Send aria-hidden />} onClick={requestSubmit}>
+                Enviar a revisión
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Enviar a revisión"
+        description="Supervisión revisará la boleta. No podrás editarla hasta que la apruebe u observe."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" leadingIcon={<Send aria-hidden />} onClick={submit}>
+              Enviar
+            </Button>
+          </>
+        }
+      >
+        <dl className={styles.summary}>
+          <dt>Proveedor</dt>
+          <dd>{supplier?.name ?? "—"}</dd>
+          <dt>Tiquete</dt>
+          <dd>
+            <Mono>{fields.scaleTicket || "—"}</Mono>
+          </dd>
+          <dt>Acopio</dt>
+          <dd>{catalogName(sites, fields.siteId) || "—"}</dd>
+          <dt>Llegada a oficina</dt>
+          <dd>{formatBusinessDate(fields.officeArrivalDate)}</dd>
+          <dt>Peso líquido</dt>
+          <dd className={styles.summaryStrong}>{formatKgRaw(fields.liquidKg)} kg</dd>
+        </dl>
+        <Field label="Comentario" htmlFor="submit-comment" optional>
+          <Textarea
+            id="submit-comment"
+            placeholder="Contexto para Supervisión, si hace falta."
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+          />
+        </Field>
+      </Dialog>
+    </ReviewProvider>
+  );
+}
+
+function WeightCheckRow({
+  label,
+  check,
+  onApply,
+  readOnly,
+}: {
+  label: string;
+  check: WeightCheck;
+  onApply: (value: string) => void;
+  readOnly: boolean;
+}) {
+  const state = check.expected === null || check.actual === null ? "idle" : check.ok ? "ok" : "mismatch";
+  return (
+    <div className={cx(styles.checkRow, styles[`check_${state}`])}>
+      <span className={styles.checkIcon} aria-hidden>
+        {state === "ok" ? <CircleCheck /> : state === "mismatch" ? <CircleX /> : <span className={styles.checkIdle} />}
+      </span>
+      <span className={styles.checkLabel}>{label}</span>
+      <span className={styles.checkValue}>
+        {state === "idle" ? "Faltan datos" : state === "ok" ? `${formatKg(check.expected)} kg` : `Esperado ${formatKg(check.expected)} kg`}
+      </span>
+      {state === "mismatch" && !readOnly && (
+        <Button size="sm" variant="ghost" leadingIcon={<ArrowDownToLine aria-hidden />} onClick={() => onApply(formatKg(check.expected))}>
+          Usar
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function OfficeCard({
+  fields,
+  setFields,
+  errors,
+}: {
+  fields: TicketFields;
+  setFields: (update: (current: TicketFields) => TicketFields) => void;
+  errors: Partial<Record<FieldPath, string>>;
+}) {
+  const patch = (values: Partial<TicketFields>) => setFields((current) => ({ ...current, ...values }));
+
+  return (
+    <Card>
+      <CardHeader title="Datos de oficina" description="Lo que no viene impreso en la boleta." />
+      <CardBody>
+        <FormGrid>
+          <ReviewField path="officeArrivalDate" type="date" hint="Distinta de la fecha de pesaje del camión." />
+          <Field label={fieldLabel("documentType")} htmlFor={fieldId("documentType")} error={errors.documentType}>
+            <div className={styles.radioRow} role="radiogroup" aria-label={fieldLabel("documentType")} id={fieldId("documentType")} tabIndex={-1}>
+              <Radio
+                name="documentType"
+                label="Original"
+                checked={fields.documentType === "original"}
+                onChange={() => patch({ documentType: "original" })}
+              />
+              <Radio
+                name="documentType"
+                label="Fotocopia"
+                description={currentUser.canRegisterPhotocopy ? undefined : "Solo Administración"}
+                checked={fields.documentType === "photocopy"}
+                disabled={!currentUser.canRegisterPhotocopy}
+                onChange={() => patch({ documentType: "photocopy" })}
+              />
+            </div>
+          </Field>
+          <div className={cx(formLayout.spanFull, styles.archiveRow)}>
+            <Switch
+              label="Original archivado físicamente"
+              checked={fields.archived}
+              onChange={(event) => patch({ archived: event.target.checked, archiveLocation: event.target.checked ? fields.archiveLocation : "" })}
+            />
+            {fields.archived && (
+              <ReviewField path="archiveLocation" placeholder="Archivador, carpeta o caja" className={styles.archiveLocation} />
+            )}
+          </div>
+          <Field label={fieldLabel("modality")} htmlFor={fieldId("modality")} optional>
+            <div className={styles.radioRow} role="radiogroup" aria-label={fieldLabel("modality")} id={fieldId("modality")} tabIndex={-1}>
+              <Radio name="modality" label="Abierta" checked={fields.modality === "open"} onChange={() => patch({ modality: "open" })} />
+              <Radio name="modality" label="Cerrada" checked={fields.modality === "closed"} onChange={() => patch({ modality: "closed" })} />
+            </div>
+          </Field>
+          <div className={styles.priceRow}>
+            <ReviewField path="price" numeric optional leading={fields.currency === "USD" ? "$us" : "Bs"} hint="Por tonelada, informado." />
+            <Field label={fieldLabel("currency")} htmlFor={fieldId("currency")}>
+              <Select
+                id={fieldId("currency")}
+                value={fields.currency}
+                onChange={(event) => patch({ currency: event.target.value as TicketFields["currency"], exchangeRate: event.target.value === "BOB" ? "" : fields.exchangeRate })}
+              >
+                <option value="BOB">BOB</option>
+                <option value="USD">USD</option>
+              </Select>
+            </Field>
+          </div>
+          {fields.currency === "USD" && <ReviewField path="exchangeRate" numeric optional placeholder="6,96" hint="Bs por dólar, informado." />}
+          <ReviewField path="notes" optional multiline placeholder="Acuerdos, diferencias con el original, pendientes…" className={formLayout.spanFull} />
+        </FormGrid>
+      </CardBody>
+    </Card>
+  );
+}
