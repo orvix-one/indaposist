@@ -20,8 +20,8 @@ Las cuentas se crean por invitación. El sistema valida los permisos en servidor
 ## IND-02 Proveedores y boletas
 
 1. Oficina registra la llegada del documento físico y adjunta el escaneo. La fecha de ingreso del camión y la fecha de llegada a oficina se conservan en campos distintos.
-2. La carga asistida acepta PDF e imágenes. El OCR sugiere campos de la boleta, muestra campos pendientes y permite corregirlos con el documento a la vista. El operador puede cargar manualmente cuando el OCR está indisponible o la boleta es ilegible.
-3. Se captura el emisor, la unidad, el acopio, la campaña, el producto y los identificadores impresos disponibles. Se distinguen números de ingreso, balanza, análisis y folio según el formato. Se conservan bruto, tara, neto, descuentos, neto comercial y análisis de calidad cuando estén disponibles.
+2. La carga asistida acepta PDF e imágenes. Un PDF de varias páginas se separa en un documento por página, con el supuesto de una boleta por página. El OCR sugiere campos de la boleta, muestra campos pendientes y permite corregirlos con el documento a la vista. El operador puede cargar manualmente cuando el OCR está indisponible o la boleta es ilegible.
+3. Se captura el emisor, la unidad, el acopio, la campaña, el producto y los identificadores impresos disponibles. Se distinguen números de ingreso, balanza, análisis y folio según el formato. Se conservan bruto, tara, neto, descuentos, neto comercial y análisis de calidad cuando estén disponibles. Los factores de calidad sin fila propia se suman en «Otros» para que el total coincida con el impreso.
 4. Los datos de boleta se validan con aritmética y tolerancias aprobadas. El operador identifica al proveedor aplicable y registra discrepancias entre titular impreso y beneficiario cuando corresponda. El proveedor conserva su historial y la relación de agrupación que confirme INDAPO.
 5. Una boleta pasa de borrador a revisión y luego a aprobada, observada o rechazada. Una observación puede corregirse y reenviarse. Anulaciones y excepciones requieren autorización y motivo. La elegibilidad de pago se evalúa aparte con la política de RUA, original, copia y reimpresión.
 
