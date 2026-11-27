@@ -1,0 +1,18 @@
+.muted {
+  color: var(--color-text-tertiary);
+}
+
+.search {
+  width: 280px;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rowActions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
