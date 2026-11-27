@@ -51,7 +51,12 @@ export function AppSidebar() {
           alert
           active={pathname.startsWith("/boletas")}
         />
-        <NavItem href="#" icon={<Users aria-hidden />} label="Proveedores" disabled />
+        <NavItem
+          href="/proveedores"
+          icon={<Users aria-hidden />}
+          label="Proveedores"
+          active={pathname.startsWith("/proveedores")}
+        />
         <NavItem href="#" icon={<FileText aria-hidden />} label="Documentos" disabled />
       </NavSection>
       <NavSection label="Compras">
@@ -65,7 +70,12 @@ export function AppSidebar() {
       </NavSection>
       <NavSection label="Análisis">
         <NavItem href="#" icon={<ChartColumn aria-hidden />} label="Reportes" disabled />
-        <NavItem href="#" icon={<Settings aria-hidden />} label="Configuración" disabled />
+        <NavItem
+          href="/configuracion"
+          icon={<Settings aria-hidden />}
+          label="Configuración"
+          active={pathname.startsWith("/configuracion")}
+        />
       </NavSection>
     </Sidebar>
   );
