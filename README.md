@@ -16,7 +16,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Abrir [localhost:3000](http://localhost:3000).
+Abrir [localhost:3000](http://localhost:3000). La primera versión del design system se ve en [localhost:3000/design-system](http://localhost:3000/design-system).
 
 ```sh
 npm run check
@@ -40,6 +40,7 @@ Equipo de Vercel: [orvix-one/indaposist](https://vercel.com/orvix-one/indaposist
 | [`src/app/`](src/app/page.tsx) | Solo rutas: validan la entrada y llaman a los módulos. |
 | [`src/modules/`](src/modules/README.md) | Reglas de negocio por módulo. |
 | `src/shared/` | Código transversal. No importa de `modules` ni de `app`. |
+| [`src/shared/ui/`](src/shared/ui/index.ts) | Design system: tokens y componentes base, importados desde `@/shared/ui`. |
 | [`supabase/`](supabase/README.md) | Convenciones para migraciones, políticas y procesamiento de documentos. |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Lint, tipos y build en cambios al repositorio. |
 

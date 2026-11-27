@@ -1,0 +1,152 @@
+/* Design tokens de INDAPO: paleta derivada de la web pública (forest, olive, paper, sand, dorados) y tokens semánticos para la herramienta interna. */
+
+:root {
+  --forest-50: #eef3ef;
+  --forest-100: #d9e4dc;
+  --forest-200: #b4c8bb;
+  --forest-300: #87a792;
+  --forest-400: #557e64;
+  --forest-500: #2f5c44;
+  --forest-600: #1e4535;
+  --forest-700: #16382b;
+  --forest-800: #0f2d23;
+  --forest-900: #0a1f18;
+
+  --olive-50: #f3f4ec;
+  --olive-100: #eef0e2;
+  --olive-200: #e0e4cd;
+  --olive-300: #ced7ab;
+  --olive-400: #96a06f;
+  --olive-500: #667245;
+  --olive-600: #535d38;
+  --olive-700: #3f472a;
+
+  --stone-0: #ffffff;
+  --stone-25: #fbfbf8;
+  --stone-50: #f6f5f0;
+  --stone-100: #f0efe9;
+  --stone-150: #e9e7df;
+  --stone-200: #e1e0d6;
+  --stone-300: #d0d0c2;
+  --stone-400: #a9ac9e;
+  --stone-500: #858a7a;
+  --stone-600: #596052;
+  --stone-700: #3e453b;
+  --stone-800: #262d26;
+  --stone-900: #13251d;
+
+  --gold-50: #fcf7ea;
+  --gold-100: #f7ebc8;
+  --gold-200: #efdcab;
+  --gold-300: #d5b27a;
+  --gold-500: #9c7442;
+  --gold-600: #8f6b3c;
+  --gold-700: #6d4412;
+
+  --red-50: #fbefed;
+  --red-100: #f6d9d4;
+  --red-200: #ecbdb5;
+  --red-500: #b23b2c;
+  --red-600: #942f23;
+  --red-700: #7a251b;
+
+  --color-canvas: var(--stone-50);
+  --color-surface: var(--stone-0);
+  --color-surface-muted: var(--stone-25);
+  --color-surface-sunken: var(--stone-100);
+  --color-hover: rgb(15 45 35 / 0.045);
+  --color-pressed: rgb(15 45 35 / 0.08);
+
+  --color-border: var(--stone-200);
+  --color-border-subtle: #ecebe4;
+  --color-border-strong: var(--stone-300);
+
+  --color-text: var(--stone-900);
+  --color-text-secondary: var(--stone-600);
+  --color-text-tertiary: var(--stone-500);
+  --color-text-disabled: var(--stone-400);
+  --color-text-inverse: var(--stone-50);
+
+  --color-primary: var(--forest-800);
+  --color-primary-hover: var(--forest-700);
+  --color-primary-active: var(--forest-900);
+  --color-primary-fg: var(--stone-50);
+
+  --color-accent: var(--olive-500);
+  --color-accent-subtle: var(--olive-100);
+  --color-accent-border: var(--olive-300);
+  --color-highlight: var(--gold-300);
+
+  --color-success-fg: #2e6a3e;
+  --color-success-bg: #ebf3e8;
+  --color-success-border: #c6dcc0;
+  --color-success-solid: #3c7d4d;
+  --color-warning-fg: var(--gold-700);
+  --color-warning-bg: var(--gold-50);
+  --color-warning-border: var(--gold-200);
+  --color-warning-solid: #b8781d;
+  --color-danger-fg: var(--red-600);
+  --color-danger-bg: var(--red-50);
+  --color-danger-border: var(--red-200);
+  --color-danger-solid: var(--red-600);
+  --color-info-fg: #2c5766;
+  --color-info-bg: #eaf1f3;
+  --color-info-border: #c4d8de;
+  --color-info-solid: #3b6e80;
+
+  --sidebar-bg: var(--forest-800);
+  --sidebar-fg: rgb(233 231 223 / 0.68);
+  --sidebar-fg-strong: var(--stone-50);
+  --sidebar-muted: rgb(233 231 223 / 0.4);
+  --sidebar-hover: rgb(233 231 223 / 0.06);
+  --sidebar-active: rgb(233 231 223 / 0.1);
+  --sidebar-border: rgb(233 231 223 / 0.09);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  --control-sm: 28px;
+  --control-md: 34px;
+  --control-lg: 40px;
+
+  --shadow-xs: 0 1px 0 rgb(15 45 35 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(15 45 35 / 0.06), 0 1px 1px rgb(15 45 35 / 0.03);
+  --shadow-md: 0 4px 12px -2px rgb(15 45 35 / 0.08), 0 2px 4px -2px rgb(15 45 35 / 0.05);
+  --shadow-lg: 0 16px 32px -8px rgb(15 45 35 / 0.14), 0 4px 8px -4px rgb(15 45 35 / 0.06);
+  --focus-ring: 0 0 0 1px var(--olive-500), 0 0 0 4px rgb(102 114 69 / 0.22);
+  --focus-ring-danger: 0 0 0 1px var(--red-600), 0 0 0 4px rgb(148 47 35 / 0.16);
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 100ms;
+  --duration: 160ms;
+
+  --sidebar-width: 248px;
+  --topbar-height: 52px;
+}

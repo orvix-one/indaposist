@@ -14,6 +14,10 @@ Una aplicación modular en Next.js App Router y TypeScript, ejecutada en Vercel.
 | Ventas | Clientes, despachos, cuenta por cobrar y abonos FIFO. | Confirmar despacho. Previsualizar y confirmar abono. Consultar saldo. |
 | Reportes | Lecturas de compras y ventas y exportaciones. | Consultas y exportación con los mismos filtros y permisos. |
 
+### Interfaz
+
+La primera versión del design system está en `src/shared/ui/` y se muestra en la ruta `/design-system`. Define tokens de color derivados de la web de INDAPO (verde bosque, oliva, papel y dorados), tipografía Geist y componentes base de pantalla, formulario, toolbar y tabla. Las pantallas de cada módulo se construyen con esos componentes y no definen colores propios. Incluye un visor de documentos para imagen y PDF (pdf.js) con zoom, rotación y paginación. Ticket: IND-00.04.
+
 ### Backend
 
 Sin servicio aparte: el backend son Server Actions y Route Handlers de Next.js en Vercel. Las transacciones financieras son funciones SQL en Postgres, y el consumidor de OCR es un Route Handler disparado por cron de Supabase.
