@@ -19,7 +19,7 @@ npm run dev
 Abrir [localhost:3000](http://localhost:3000). La primera versión del design system se ve en [localhost:3000/design-system](http://localhost:3000/design-system).
 
 ```sh
-npm run check
+npm run check   # lint, tipos y pruebas de dominio
 npm run build
 ```
 

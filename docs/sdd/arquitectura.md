@@ -18,6 +18,8 @@ Una aplicación modular en Next.js App Router y TypeScript, ejecutada en Vercel.
 
 La primera versión del design system está en `src/shared/ui/` y se muestra en la ruta `/design-system`. Define tokens de color derivados de la web de INDAPO (verde bosque, oliva, papel y dorados), tipografía Geist y componentes base de pantalla, formulario, toolbar y tabla. Las pantallas de cada módulo se construyen con esos componentes y no definen colores propios. Incluye un visor de documentos para imagen y PDF (pdf.js) con zoom, rotación y paginación. Ticket: IND-00.04.
 
+La recepción de boletas (`src/modules/intake`) tiene la interfaz completa con datos sintéticos: inicio, listado con filtros (IND-02.11), carga y bandeja con huella SHA-256 y duplicados (IND-02.03, IND-02.04), revisión con documento al lado, confianza por campo y validación aritmética (IND-02.05), datos de oficina (IND-02.10) y envío a revisión con historial (IND-02.06). El estado vive en memoria del navegador y se pierde al recargar. El OCR es un adaptador simulado (`mock/ocr.ts`) con la misma interfaz que tendrá el real. Las reglas puras están en `domain/` con pruebas (`npm test`).
+
 ### Backend
 
 Sin servicio aparte: el backend son Server Actions y Route Handlers de Next.js en Vercel. Las transacciones financieras son funciones SQL en Postgres, y el consumidor de OCR es un Route Handler disparado por cron de Supabase.
