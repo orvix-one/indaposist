@@ -62,3 +62,36 @@ export function campaignsUsingProduct(productId: string, campaigns: Campaign[]):
 export function isSelectable(row: NamedRecord | Campaign): boolean {
   return "active" in row ? row.active : row.status === "open";
 }
+
+export type Option = { id: string; name: string };
+
+export function selectableOptions<T extends NamedRecord | Campaign>(
+  rows: T[],
+  currentId: string,
+  label: (row: T) => string = (row) => row.name,
+): Option[] {
+  return rows
+    .filter((row) => isSelectable(row) || row.id === currentId)
+    .map((row) => ({
+      id: row.id,
+      name: isSelectable(row) ? label(row) : `${label(row)} (${"active" in row ? "inactivo" : "cerrada"})`,
+    }));
+}
+
+export function campaignLabel(campaign: Campaign, products: Product[]): string {
+  const product = products.find((row) => row.id === campaign.productId);
+  return product ? `${campaign.name} · ${product.name}` : campaign.name;
+}
+
+export function campaignsForDate(campaigns: Campaign[], date: string): Campaign[] {
+  const day = date.slice(0, 10);
+  if (!day) return [];
+  return campaigns.filter((campaign) => campaign.startDate <= day && day <= campaign.endDate);
+}
+
+export function defaultCampaignId(campaigns: Campaign[], today: string): string {
+  const open = campaigns.filter((campaign) => campaign.status === "open");
+  const current = campaignsForDate(open, today)[0];
+  if (current) return current.id;
+  return [...open].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]?.id ?? "";
+}

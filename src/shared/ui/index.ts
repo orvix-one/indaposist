@@ -22,7 +22,9 @@ export {
 } from "./forms";
 export { Avatar, Badge, Kbd, Mono, Separator, Spinner } from "./primitives";
 export type { Tone } from "./primitives";
-export { AppShell, NavItem, NavSection, PageHeader, Sidebar, SidebarContext, SidebarUser, Topbar } from "./shell";
+export { AppShell, NavItem, NavSection, PageHeader, Sidebar, SidebarUser, Topbar } from "./shell";
+export { SidebarContext } from "./sidebar-context";
+export { InfoTooltip } from "./tooltip";
 export { CellStack, Pagination, TBody, THead, Table, Td, Th, Tr } from "./table";
 export {
   BulkAction,

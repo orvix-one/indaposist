@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { campaignsUsingProduct, isSelectable, normalizeName, validateCampaign, validateNamed } from "./rules.ts";
+import {
+  campaignLabel,
+  campaignsForDate,
+  campaignsUsingProduct,
+  defaultCampaignId,
+  isSelectable,
+  normalizeName,
+  selectableOptions,
+  validateCampaign,
+  validateNamed,
+} from "./rules.ts";
 import type { Campaign, CampaignInput, Product } from "./types.ts";
 
 const at = "2026-11-01T12:00:00.000Z";
@@ -96,5 +106,38 @@ describe("uso y selección", () => {
     assert.equal(isSelectable(product("a", false)), false);
     assert.equal(isSelectable(campaign({ status: "closed" })), false);
     assert.equal(isSelectable(campaign()), true);
+  });
+});
+
+describe("selectableOptions", () => {
+  const products = [product("soy"), product("sun", false)];
+
+  it("muestra solo activos, salvo el registro ya elegido, marcado como inactivo", () => {
+    assert.deepEqual(selectableOptions(products, "").map((row) => row.id), ["soy"]);
+    assert.deepEqual(selectableOptions(products, "sun").map((row) => row.name), ["Producto soy", "Producto sun (inactivo)"]);
+  });
+
+  it("marca como cerrada la campaña ya elegida", () => {
+    const closed = campaign({ id: "v25", status: "closed" });
+    assert.deepEqual(selectableOptions([campaign(), closed], "v25").map((row) => row.name), ["Verano 2025/26", "Verano 2025/26 (cerrada)"]);
+  });
+});
+
+describe("campañas por fecha", () => {
+  const invierno = campaign({ id: "i26", name: "Invierno 2026", startDate: "2026-09-01", endDate: "2026-11-30" });
+
+  it("etiqueta la campaña con su producto", () => {
+    assert.equal(campaignLabel(campaign(), [{ ...product("soy"), name: "Soya en grano" }]), "Verano 2025/26 · Soya en grano");
+  });
+
+  it("encuentra la campaña cuyo período contiene la fecha de pesaje", () => {
+    assert.deepEqual(campaignsForDate([campaign(), invierno], "2026-11-26T07:42").map((row) => row.id), ["i26"]);
+    assert.deepEqual(campaignsForDate([campaign(), invierno], "2026-08-15"), []);
+  });
+
+  it("elige por defecto la campaña abierta en curso o la más reciente", () => {
+    assert.equal(defaultCampaignId([campaign(), invierno], "2026-11-27"), "i26");
+    assert.equal(defaultCampaignId([campaign(), invierno], "2027-01-10"), "i26");
+    assert.equal(defaultCampaignId([campaign({ status: "closed" })], "2026-05-01"), "");
   });
 });

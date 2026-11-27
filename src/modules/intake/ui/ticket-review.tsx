@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, ScanSearch, Send } from "lucide-react";
+import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, Plus, ScanSearch, Send } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { currentUser } from "@/modules/access";
+import { campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
 import {
   Alert,
   Badge,
@@ -15,6 +17,7 @@ import {
   EmptyState,
   Field,
   FormGrid,
+  Input,
   Mono,
   PageHeader,
   Radio,
@@ -36,15 +39,14 @@ import {
   type WeightCheck,
 } from "../domain/rules";
 import type { FieldPath, Ticket, TicketFields } from "../domain/types";
-import { campaigns, catalogName, currentUser, issuers, products, sites, supplierById, suppliers } from "../mock/catalogs";
+import type { SupplierField, SupplierInput } from "../domain/supplier";
 import { useIntake } from "./intake-store";
-import { fieldId, fieldLabel, formatBusinessDate, formatKg, formatKgRaw, ticketStatusMeta } from "./labels";
+import { fieldId, fieldLabel, formatBusinessDate, formatKgExact, formatKgRaw, ticketStatusMeta } from "./labels";
 import { QualityTable } from "./quality-table";
 import { ReviewField, ReviewProvider, type ReviewContextValue } from "./review-context";
 import { TicketHistory } from "./ticket-history";
+import { useSuppliers } from "./suppliers-store";
 import styles from "./intake.module.css";
-
-const supplierOptions = suppliers.map((supplier) => ({ id: supplier.id, name: `${supplier.name} · ${supplier.taxId}` }));
 
 export function TicketReview({ ticketId }: { ticketId: string }) {
   const { tickets } = useIntake();
@@ -85,7 +87,22 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
   const checks = weightChecks(fields);
   const liveIssues = issues ? validateForSubmit(ticket, fields, verified) : null;
   const errorCount = liveIssues ? Object.keys(liveIssues.fieldErrors).length : 0;
-  const supplier = supplierById(fields.supplierId);
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const { issuers, sites, campaigns, products } = useCatalogs();
+  const { suppliers } = useSuppliers();
+  const supplier = suppliers.find((row) => row.id === fields.supplierId);
+  const issuerName = issuers.find((row) => row.id === fields.issuerId)?.name;
+  const siteName = sites.find((row) => row.id === fields.siteId)?.name;
+  const options = useMemo(
+    () => ({
+      issuers: selectableOptions(issuers, fields.issuerId),
+      sites: selectableOptions(sites, fields.siteId),
+      campaigns: selectableOptions(campaigns, fields.campaignId, (row) => campaignLabel(row, products)),
+      products: selectableOptions(products, fields.productId),
+      suppliers: selectableOptions(suppliers, fields.supplierId, (row) => `${row.name} · ${row.taxId}`),
+    }),
+    [issuers, sites, campaigns, products, suppliers, fields.issuerId, fields.siteId, fields.campaignId, fields.productId, fields.supplierId],
+  );
 
   const setValue = useCallback((path: FieldPath, value: string) => {
     setFields((current) => setFieldValue(current, path, value));
@@ -182,7 +199,7 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
             </Badge>
           </span>
         }
-        description={[supplier?.name ?? "Proveedor sin identificar", fields.scaleTicket && `Tiquete ${fields.scaleTicket}`, catalogName(issuers, fields.issuerId)]
+        description={[supplier?.name ?? "Proveedor sin identificar", fields.scaleTicket && `Tiquete ${fields.scaleTicket}`, issuerName]
           .filter(Boolean)
           .join(" · ")}
       />
@@ -219,13 +236,13 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
             </Alert>
           )}
           {editable && ticket.ocr === "suggested" && Object.keys(ticket.suggestions).length > 0 && (
-            <Alert tone="neutral" title="Sugerencias de OCR (simulado)">
+            <Alert tone="neutral" title="Datos leídos del escaneo">
               Compara cada valor con el documento. Los campos con menos de 85 % de confianza están resaltados: corrígelos o confírmalos.
             </Alert>
           )}
           {editable && ticket.ocr === "manual" && (
             <Alert tone="warning" title="Carga manual">
-              El OCR no pudo leer este documento. Completa los datos a partir del escaneo.
+              No se pudo leer este documento. Completa los datos a partir del escaneo.
             </Alert>
           )}
 
@@ -234,10 +251,10 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
               <CardHeader title="Identificación" description="Datos impresos en la cabecera de la boleta." />
               <CardBody>
                 <FormGrid>
-                  <ReviewField path="issuerId" options={issuers} />
-                  <ReviewField path="siteId" options={sites} />
-                  <ReviewField path="campaignId" options={campaigns} />
-                  <ReviewField path="productId" options={products} />
+                  <ReviewField path="issuerId" options={options.issuers} />
+                  <ReviewField path="siteId" options={options.sites} />
+                  <ReviewField path="campaignId" options={options.campaigns} />
+                  <ReviewField path="productId" options={options.products} />
                   <ReviewField path="scaleTicket" />
                   <ReviewField path="weighedAt" type="datetime-local" />
                   <ReviewField path="entryNumber" optional />
@@ -251,7 +268,18 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
               <CardHeader title="Proveedor y transporte" />
               <CardBody>
                 <FormGrid>
-                  <ReviewField path="supplierId" options={supplierOptions} className={formLayout.span2} />
+                  <ReviewField
+                    path="supplierId"
+                    options={options.suppliers}
+                    className={formLayout.span2}
+                    hint={
+                      editable && !fields.supplierId ? (
+                        <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden />} onClick={() => setCreatingSupplier(true)}>
+                          Crear proveedor
+                        </Button>
+                      ) : undefined
+                    }
+                  />
                   <ReviewField path="owner" optional hint="Titular impreso en la boleta, si difiere del proveedor." />
                   <ReviewField path="origin" optional />
                   <ReviewField path="driver" optional />
@@ -355,7 +383,7 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
             <Mono>{fields.scaleTicket || "—"}</Mono>
           </dd>
           <dt>Acopio</dt>
-          <dd>{catalogName(sites, fields.siteId) || "—"}</dd>
+          <dd>{siteName || "—"}</dd>
           <dt>Llegada a oficina</dt>
           <dd>{formatBusinessDate(fields.officeArrivalDate)}</dd>
           <dt>Peso líquido</dt>
@@ -370,7 +398,78 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
           />
         </Field>
       </Dialog>
+
+      {creatingSupplier && (
+        <CreateSupplierDialog
+          initial={{ name: ticket.readings?.supplierName ?? "", taxId: ticket.readings?.supplierTaxId ?? "" }}
+          onClose={() => setCreatingSupplier(false)}
+          onCreated={(id) => {
+            setValue("supplierId", id);
+            setCreatingSupplier(false);
+          }}
+        />
+      )}
     </ReviewProvider>
+  );
+}
+
+function CreateSupplierDialog({
+  initial,
+  onClose,
+  onCreated,
+}: {
+  initial: Pick<SupplierInput, "name" | "taxId">;
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const { save } = useSuppliers();
+  const [values, setValues] = useState(initial);
+  const [errors, setErrors] = useState<Partial<Record<SupplierField, string>>>({});
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setSaving(true);
+    const result = await save({ ...values, active: true });
+    setSaving(false);
+    if (result.ok) onCreated(result.row.id);
+    else setErrors(result.errors);
+  };
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Crear proveedor"
+      description="Se agrega al catálogo de proveedores y queda elegido en esta boleta."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={submit} disabled={saving}>
+            Crear
+          </Button>
+        </>
+      }
+    >
+      <Field label="Nombre o razón social" htmlFor="new-supplier-name" error={errors.name}>
+        <Input
+          id="new-supplier-name"
+          value={values.name}
+          autoFocus
+          invalid={Boolean(errors.name)}
+          onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
+        />
+      </Field>
+      <Field label="NIT o CI" htmlFor="new-supplier-tax" error={errors.taxId} hint="Ej. NIT 1028374019 o CI 5928374 SC">
+        <Input
+          id="new-supplier-tax"
+          value={values.taxId}
+          invalid={Boolean(errors.taxId)}
+          onChange={(event) => setValues((current) => ({ ...current, taxId: event.target.value }))}
+        />
+      </Field>
+    </Dialog>
   );
 }
 
@@ -393,10 +492,10 @@ function WeightCheckRow({
       </span>
       <span className={styles.checkLabel}>{label}</span>
       <span className={styles.checkValue}>
-        {state === "idle" ? "Faltan datos" : state === "ok" ? `${formatKg(check.expected)} kg` : `Esperado ${formatKg(check.expected)} kg`}
+        {state === "idle" ? "Faltan datos" : state === "ok" ? `${formatKgExact(check.expected)} kg` : `Esperado ${formatKgExact(check.expected)} kg`}
       </span>
       {state === "mismatch" && !readOnly && (
-        <Button size="sm" variant="ghost" leadingIcon={<ArrowDownToLine aria-hidden />} onClick={() => onApply(formatKg(check.expected))}>
+        <Button size="sm" variant="ghost" leadingIcon={<ArrowDownToLine aria-hidden />} onClick={() => onApply(formatKgExact(check.expected))}>
           Usar
         </Button>
       )}

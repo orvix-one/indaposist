@@ -43,6 +43,7 @@ import {
   FilterChip,
   FormGrid,
   FormSection,
+  InfoTooltip,
   Input,
   Kbd,
   Mono,
@@ -175,7 +176,7 @@ function Block({
 function AppSidebar() {
   return (
     <Sidebar
-      context={<SidebarContext label="Campaña" value="Verano 2026 · Acopio Norte" />}
+      context={<SidebarContext label="Campaña" value="v26" options={[{ value: "v26", label: "Verano 2026 · Acopio Norte" }]} />}
       footer={
         <SidebarUser
           name="Lucía Méndez"
@@ -551,7 +552,7 @@ export default function DesignSystemPage() {
                   <Badge tone="warning" dot>Por revisar</Badge>
                   <Badge tone="success" dot>Aprobada</Badge>
                   <Badge tone="danger" dot>Observada</Badge>
-                  <Badge tone="info" dot>En OCR</Badge>
+                  <Badge tone="info" dot>En lectura</Badge>
                   <Badge dot>Liquidada</Badge>
                 </div>
                 <div className={styles.row}>
@@ -559,6 +560,12 @@ export default function DesignSystemPage() {
                   <Badge tone="solid" dot>Campaña activa</Badge>
                   <Badge square>v3</Badge>
                   <Badge tone="info" square>FIFO</Badge>
+                </div>
+                <div className={styles.row}>
+                  <span className={styles.blockDescription}>
+                    Otros{" "}
+                    <InfoTooltip label="Qué incluye Otros">Suma de los análisis sin fila propia.</InfoTooltip>
+                  </span>
                 </div>
                 <div className={styles.row}>
                   <Spinner />

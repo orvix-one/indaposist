@@ -2,9 +2,9 @@
 
 /* Estado de los catálogos sobre repositorios en memoria. Se reinicia al recargar. */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Repository } from "../domain/repository";
-import { campaignsUsingProduct, validateCampaign, validateNamed } from "../domain/rules";
+import { campaignsUsingProduct, defaultCampaignId, validateCampaign, validateNamed } from "../domain/rules";
 import type {
   Campaign,
   CampaignField,
@@ -32,13 +32,15 @@ type CatalogsContextValue = Lists & {
   saveCampaign(input: CampaignInput, id?: string): Promise<SaveResult<Campaign, CampaignField>>;
   remove(kind: CatalogKind, id: string): Promise<boolean>;
   usage(kind: CatalogKind, id: string): string | null;
+  registerReferenceCheck(check: ReferenceCheck): () => void;
+  currentCampaignId: string;
+  setCurrentCampaignId(id: string): void;
 };
 
 const CatalogsContext = createContext<CatalogsContextValue | null>(null);
 
 const KINDS: CatalogKind[] = ["products", "sites", "issuers", "campaigns"];
 const EMPTY: Lists = { products: [], sites: [], issuers: [], campaigns: [] };
-const notReferenced: ReferenceCheck = () => false;
 
 function createRepos(): Repos {
   return {
@@ -53,16 +55,28 @@ function plural(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-export function CatalogsProvider({
-  children,
-  isReferenced = notReferenced,
-}: {
-  children: ReactNode;
-  isReferenced?: ReferenceCheck;
-}) {
+function today(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+export function CatalogsProvider({ children }: { children: ReactNode }) {
   const [repos] = useState(createRepos);
   const [lists, setLists] = useState<Lists>(EMPTY);
   const [loading, setLoading] = useState(true);
+  const [chosenCampaignId, setCurrentCampaignId] = useState("");
+  const checksRef = useRef(new Set<ReferenceCheck>());
+
+  const registerReferenceCheck = useCallback((check: ReferenceCheck) => {
+    checksRef.current.add(check);
+    return () => {
+      checksRef.current.delete(check);
+    };
+  }, []);
+
+  const currentCampaignId = lists.campaigns.some((row) => row.id === chosenCampaignId)
+    ? chosenCampaignId
+    : defaultCampaignId(lists.campaigns, today());
 
   const refresh = useCallback(
     async (kind: CatalogKind) => {
@@ -107,9 +121,9 @@ export function CatalogsProvider({
         const count = campaignsUsingProduct(id, lists.campaigns).length;
         if (count > 0) return `Tiene ${plural(count, "campaña asociada", "campañas asociadas")}.`;
       }
-      return isReferenced(kind, id) ? "Tiene boletas asociadas." : null;
+      return [...checksRef.current].some((check) => check(kind, id)) ? "Tiene boletas asociadas." : null;
     },
-    [lists.campaigns, isReferenced],
+    [lists.campaigns],
   );
 
   const remove = useCallback<CatalogsContextValue["remove"]>(
@@ -123,8 +137,8 @@ export function CatalogsProvider({
   );
 
   const value = useMemo(
-    () => ({ ...lists, loading, saveNamed, saveCampaign, remove, usage }),
-    [lists, loading, saveNamed, saveCampaign, remove, usage],
+    () => ({ ...lists, loading, saveNamed, saveCampaign, remove, usage, registerReferenceCheck, currentCampaignId, setCurrentCampaignId }),
+    [lists, loading, saveNamed, saveCampaign, remove, usage, registerReferenceCheck, currentCampaignId],
   );
 
   return <CatalogsContext.Provider value={value}>{children}</CatalogsContext.Provider>;

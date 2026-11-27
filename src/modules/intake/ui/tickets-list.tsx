@@ -4,6 +4,7 @@ import { Inbox, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { campaignLabel, useCatalogs } from "@/modules/catalogs";
 import {
   Badge,
   Button,
@@ -31,8 +32,8 @@ import {
 } from "@/shared/ui";
 import { parseDecimal, pendingVerification } from "../domain/rules";
 import type { TicketStatus } from "../domain/types";
-import { campaigns, catalogName, sites, supplierById } from "../mock/catalogs";
 import { useIntake } from "./intake-store";
+import { useSuppliers } from "./suppliers-store";
 import { formatBusinessDate, formatKg, ticketStatusMeta } from "./labels";
 import styles from "./intake.module.css";
 
@@ -51,6 +52,8 @@ const STATUS_TABS: Array<{ status?: TicketStatus; label: string }> = [
 export function TicketsList({ status }: { status?: TicketStatus }) {
   const router = useRouter();
   const { tickets } = useIntake();
+  const { sites, campaigns, products } = useCatalogs();
+  const { suppliers } = useSuppliers();
   const [query, setQuery] = useState("");
   const [siteId, setSiteId] = useState("");
   const [campaignId, setCampaignId] = useState("");
@@ -69,14 +72,14 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
       if (from && (!date || date < from)) return false;
       if (to && (!date || date > to)) return false;
       if (!needle) return true;
-      const supplier = supplierById(ticket.fields.supplierId);
+      const supplier = suppliers.find((row) => row.id === ticket.fields.supplierId);
       return [ticket.code, ticket.fields.scaleTicket, supplier?.name, supplier?.taxId, ticket.fields.plate]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(needle));
     });
-  }, [tickets, status, query, siteId, campaignId, dateField, from, to]);
+  }, [tickets, suppliers, status, query, siteId, campaignId, dateField, from, to]);
 
-  const filtersActive = Boolean(query || siteId || campaignId || from || to);
+  const filtersActive = Boolean(query || siteId || from || to || campaignId);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -139,7 +142,7 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
               <option value="">Todos los acopios</option>
               {sites.map((site) => (
                 <option key={site.id} value={site.id}>
-                  {site.name}
+                  {site.active ? site.name : `${site.name} (inactivo)`}
                 </option>
               ))}
             </Select>
@@ -147,7 +150,8 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
               <option value="">Todas las campañas</option>
               {campaigns.map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
+                  {campaignLabel(campaign, products)}
+                  {campaign.status === "open" ? "" : " (cerrada)"}
                 </option>
               ))}
             </Select>
@@ -208,7 +212,7 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
             </THead>
             <TBody>
               {visible.map((ticket) => {
-                const supplier = supplierById(ticket.fields.supplierId);
+                const supplier = suppliers.find((row) => row.id === ticket.fields.supplierId);
                 const pending = ticket.status === "draft" ? pendingVerification(ticket, ticket.fields, ticket.verified).length : 0;
                 const href = `${ROUTE}/${ticket.id}`;
                 return (
@@ -230,7 +234,7 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
                         <span className={styles.muted}>Sin proveedor</span>
                       )}
                     </Td>
-                    <Td muted>{catalogName(sites, ticket.fields.siteId) || "—"}</Td>
+                    <Td muted>{sites.find((site) => site.id === ticket.fields.siteId)?.name ?? "—"}</Td>
                     <Td muted>{formatBusinessDate(ticket.fields.weighedAt)}</Td>
                     <Td muted>{formatBusinessDate(ticket.fields.officeArrivalDate)}</Td>
                     <Td numeric>{formatKg(parseDecimal(ticket.fields.liquidKg))}</Td>

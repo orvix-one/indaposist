@@ -1,4 +1,4 @@
-/* Datos sintéticos con los mismos ids que intake/mock/catalogs.ts, para conectar la boleta sin migrar referencias. */
+/* Datos sintéticos iniciales. Las boletas de ejemplo de intake usan estos mismos ids. */
 
 import type { Campaign, Issuer, Product, Site } from "../domain/types.ts";
 
