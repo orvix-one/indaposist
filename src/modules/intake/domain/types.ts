@@ -13,7 +13,12 @@ export type TicketFormat = "indapo" | "cargill" | "unknown";
 
 export type ExtractionUsage = { inputTokens: number; outputTokens: number; costUsd: number | null; attempts: number };
 
-export type DocumentSource = { fileName: string; page: number; pageCount: number };
+/**
+ * Origen de un documento que salió de un archivo de varias páginas.
+ * `pages` lista las páginas que lo forman (más de una si se unieron); `page` es la primera.
+ * `fileSha256` es la huella del archivo original; la del documento es la de su propia imagen.
+ */
+export type DocumentSource = { fileName: string; fileSha256: string; page: number; pages: number[]; pageCount: number };
 
 export type TicketReadings = {
   format: TicketFormat;
@@ -87,6 +92,8 @@ export type DocumentRef = {
   kind: DocumentKind;
   url: string;
   sha256: string;
+  /** Huella del archivo original cuando el documento es una o más páginas de un PDF. */
+  fileSha256?: string;
   sizeBytes: number;
   synthetic?: boolean;
 };

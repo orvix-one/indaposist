@@ -5,8 +5,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { currentUser } from "@/modules/access";
 import { useCatalogs, type CatalogKind } from "@/modules/catalogs";
-import { toPageImages } from "@/shared/document-pages";
+import { stackPageImages, toPageImages } from "@/shared/document-pages";
 import { emptyFields } from "../domain/fields";
+import { canMergeWithPrevious, fileHashOf, pagesLabel } from "../domain/pages";
 import { canTransition, findDuplicateTicket, isEditable, validateDecision, type TicketDecision } from "../domain/rules";
 import type { FieldPath, HistoryEntry, IntakeDocument, Ticket, TicketFields, TicketReadings } from "../domain/types";
 import { seedState } from "../mock/seed";
@@ -63,7 +64,7 @@ function initialState(): State {
   return seedState();
 }
 
-async function sha256(file: File): Promise<string> {
+async function sha256(file: Blob): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -85,6 +86,7 @@ type IntakeContextValue = {
   retryDocument: (id: string) => void;
   startManualEntry: (id: string) => string | null;
   removeDocument: (id: string) => void;
+  mergeWithPrevious: (id: string) => Promise<string | null>;
   discardDocument: (id: string) => void;
   saveDraft: (id: string, fields: TicketFields, verified: FieldPath[]) => void;
   submitForReview: (id: string, fields: TicketFields, verified: FieldPath[], comment: string) => void;
@@ -148,10 +150,11 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
       readings,
       verified: [],
       document: {
-        name: doc.source && doc.source.pageCount > 1 ? `${doc.name} · pág. ${doc.source.page}` : doc.name,
+        name: doc.source && doc.source.pageCount > 1 ? `${doc.name} · ${pagesLabel(doc.source.pages)}` : doc.name,
         kind: doc.kind,
         url: doc.url,
         sha256: doc.sha256,
+        fileSha256: doc.source?.fileSha256,
         sizeBytes: doc.sizeBytes,
       },
       history: [
@@ -216,9 +219,18 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
   const uploadFiles = useCallback(
     async (files: File[]) => {
       const rejected: RejectedFile[] = [];
+      // Huellas de archivos y de páginas ya cargadas: un archivo repetido no se reprocesa y una página repetida no crea otra boleta.
       const known = new Map<string, string | undefined>();
-      for (const ticket of stateRef.current.tickets) if (ticket.document) known.set(ticket.document.sha256, ticket.id);
-      for (const doc of stateRef.current.documents) if (!known.has(doc.sha256)) known.set(doc.sha256, doc.ticketId);
+      const knownPages = new Map<string, string | undefined>();
+      for (const ticket of stateRef.current.tickets) {
+        if (!ticket.document) continue;
+        known.set(ticket.document.fileSha256 ?? ticket.document.sha256, ticket.id);
+        knownPages.set(ticket.document.sha256, ticket.id);
+      }
+      for (const doc of stateRef.current.documents) {
+        if (!known.has(fileHashOf(doc))) known.set(fileHashOf(doc), doc.ticketId);
+        if (!knownPages.has(doc.sha256)) knownPages.set(doc.sha256, doc.ticketId);
+      }
 
       for (const file of files) {
         if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -258,17 +270,26 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
           rejected.push({ name: file.name, reason: "No se pudo leer el archivo." });
           continue;
         }
-        const documents: IntakeDocument[] = pages.map((page, index) => ({
-          ...base,
-          id: uid("doc"),
-          kind: "image",
-          url: URL.createObjectURL(page),
-          sizeBytes: page.size,
-          status: "uploaded",
-          source: { fileName: file.name, page: index + 1, pageCount: pages.length },
-        }));
+        const documents: IntakeDocument[] = await Promise.all(
+          pages.map(async (page, index) => {
+            const pageHash = await sha256(page);
+            const duplicateOf = knownPages.has(pageHash) ? knownPages.get(pageHash) : null;
+            knownPages.set(pageHash, undefined);
+            return {
+              ...base,
+              id: uid("doc"),
+              kind: "image" as const,
+              url: URL.createObjectURL(page),
+              sizeBytes: page.size,
+              sha256: pageHash,
+              status: duplicateOf === null ? ("uploaded" as const) : ("duplicate" as const),
+              duplicateOfTicketId: duplicateOf ?? undefined,
+              source: { fileName: file.name, fileSha256: hash, page: index + 1, pages: [index + 1], pageCount: pages.length },
+            };
+          }),
+        );
         dispatch({ type: "add-documents", documents });
-        for (const doc of documents) enqueue(doc, 1);
+        for (const doc of documents) if (doc.status === "uploaded") enqueue(doc, 1);
       }
       return rejected;
     },
@@ -296,6 +317,44 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
   );
 
   const removeDocument = useCallback((id: string) => dispatch({ type: "remove-document", id }), []);
+
+  /* Une una página con la anterior del mismo archivo: descarta ambas (y sus borradores) y lee la imagen combinada. */
+  const mergeWithPrevious = useCallback(
+    async (id: string) => {
+      const { documents, tickets } = stateRef.current;
+      const check = canMergeWithPrevious(id, documents, tickets);
+      if (!check.ok) return check.reason;
+      const previous = documents.find((item) => item.id === check.previousId)!;
+      const doc = documents.find((item) => item.id === id)!;
+      let image: Blob;
+      try {
+        const blobs = await Promise.all([previous, doc].map((item) => fetch(item.url).then((response) => response.blob())));
+        image = await stackPageImages(blobs);
+      } catch {
+        return "No se pudieron unir las imágenes.";
+      }
+      for (const item of [previous, doc]) {
+        if (item.ticketId) dispatch({ type: "remove-ticket", id: item.ticketId });
+        dispatch({ type: "remove-document", id: item.id });
+      }
+      const merged: IntakeDocument = {
+        id: uid("doc"),
+        name: previous.name,
+        kind: "image",
+        url: URL.createObjectURL(image),
+        sizeBytes: image.size,
+        sha256: await sha256(image),
+        status: "uploaded",
+        attempts: 0,
+        uploadedAt: new Date().toISOString(),
+        source: { ...previous.source!, pages: [...previous.source!.pages, ...doc.source!.pages] },
+      };
+      dispatch({ type: "add-documents", documents: [merged] });
+      enqueue(merged, 1);
+      return null;
+    },
+    [enqueue],
+  );
 
   const discardDocument = useCallback((id: string) => {
     const doc = stateRef.current.documents.find((item) => item.id === id);
@@ -376,12 +435,13 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
       retryDocument,
       startManualEntry,
       removeDocument,
+      mergeWithPrevious,
       discardDocument,
       saveDraft,
       submitForReview,
       decideTicket,
     }),
-    [state.tickets, state.documents, uploadFiles, retryDocument, startManualEntry, removeDocument, discardDocument, saveDraft, submitForReview, decideTicket],
+    [state.tickets, state.documents, uploadFiles, retryDocument, startManualEntry, removeDocument, mergeWithPrevious, discardDocument, saveDraft, submitForReview, decideTicket],
   );
 
   return <IntakeContext.Provider value={value}>{children}</IntakeContext.Provider>;
