@@ -1,6 +1,8 @@
 export type { Ticket, TicketStatus } from "./domain/types";
 export { IntakeOverview } from "./ui/intake-overview";
-export { IntakeProvider, useIntakeSummary } from "./ui/intake-store";
+export { IntakeProvider, useIntakeSummary, useTickets } from "./ui/intake-store";
+export { ticketAmountCents } from "./domain/rules";
+export { formatBusinessDate } from "./ui/labels";
 export { TicketReview } from "./ui/ticket-review";
 export { TicketsList } from "./ui/tickets-list";
 export { UploadInbox } from "./ui/upload-inbox";

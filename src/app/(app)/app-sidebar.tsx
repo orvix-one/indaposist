@@ -75,7 +75,7 @@ export function AppSidebar() {
       </NavSection>
       <NavSection label="Compras">
         <NavItem href="#" icon={<Scale aria-hidden />} label="Liquidaciones" disabled />
-        <NavItem href="#" icon={<Wallet aria-hidden />} label="Pagos" disabled />
+        <NavItem href="/pagos" icon={<Wallet aria-hidden />} label="Pagos" active={pathname.startsWith("/pagos")} />
       </NavSection>
       <NavSection label="Ventas">
         <NavItem href="#" icon={<Landmark aria-hidden />} label="Clientes" disabled />

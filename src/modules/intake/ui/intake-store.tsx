@@ -392,3 +392,8 @@ export function useIntakeSummary() {
   const { tickets } = useIntake();
   return useMemo(() => ({ drafts: tickets.filter((ticket) => ticket.status === "draft").length }), [tickets]);
 }
+
+/** Boletas en memoria, de solo lectura, para otros módulos (por ejemplo, compras). */
+export function useTickets(): Ticket[] {
+  return useIntake().tickets;
+}

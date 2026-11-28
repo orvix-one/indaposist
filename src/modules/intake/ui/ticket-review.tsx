@@ -674,8 +674,8 @@ function OfficeCard({
 }
 
 const UNIT_LABELS: Record<QuantityUnit, { option: string; per: string }> = {
-  t: { option: "Toneladas (t)", per: "tonelada" },
-  kg: { option: "Kilogramos (kg)", per: "kilogramo" },
+  t: { option: "t", per: "tonelada" },
+  kg: { option: "kg", per: "kilogramo" },
 };
 
 function AmountCard({
