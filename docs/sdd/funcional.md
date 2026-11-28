@@ -65,6 +65,6 @@ Se registra el comprobante de un abono y se previsualiza su distribución a los 
 
 ## IND-06 Reportes
 
-Consultas internas de boletas recibidas, reportes por proveedor, pagos y saldos, despachos y cuentas por cobrar. Las vistas diferencian fecha de camión, llegada y operación financiera cuando sean aplicables. Los importes se agregan en su moneda o mediante una conversión aprobada visible. Las exportaciones XLSX usan los mismos filtros, permisos y definiciones que la vista.
+Consultas internas de boletas recibidas, reportes por proveedor, pagos y saldos, despachos y cuentas por cobrar. Las vistas diferencian fecha de camión, llegada y operación financiera cuando sean aplicables. Los importes se agregan en su moneda o mediante una conversión aprobada visible. Las exportaciones XLSX usan los mismos filtros, permisos y definiciones que la vista. Desde la ficha del proveedor se genera su historial en PDF para enviárselo: boletas aprobadas con pesos y descuentos por calidad, pagos, y saldo por moneda, filtrable por campaña y fechas de pesaje. El portal de autoservicio para proveedores queda fuera del MVP.
 
 **Aceptación**. Un reporte filtrado reconcilia con sus registros operativos, muestra qué saldos son estimados o exigibles, diferencia monedas y conserva en la exportación el mismo ámbito de datos que en pantalla.

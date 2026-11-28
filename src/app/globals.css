@@ -27,6 +27,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@media print {
+  body {
+    background: var(--color-surface);
+  }
+}
+
 h1,
 h2,
 h3,

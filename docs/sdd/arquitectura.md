@@ -22,6 +22,8 @@ La recepción de boletas (`src/modules/intake`) tiene la interfaz completa con d
 
 Compras (`src/modules/purchasing`) registra pagos por boleta con la misma estrategia en memoria (IND-03.01 a IND-03.03). La boleta define carga, unidad, precio y moneda; su importe y la conversión de cada pago por tipo de cambio se calculan en `src/shared/money.ts` con centavos enteros, sin coma flotante. Compras lee las boletas aprobadas desde la API pública de recepción y la ruta `/boletas/[id]` compone ambas pantallas, así recepción no depende de compras. Hasta IND-01.01, la sesión es un único usuario de Administración (IND-01.03).
 
+Reportes (`src/modules/reports`) arma el historial del proveedor desde las APIs públicas de recepción, compras y catálogos (IND-06.01). Es una página imprimible en `/proveedores/[id]/reporte`: el navegador la guarda como PDF y las reglas de impresión ocultan la navegación.
+
 ### Backend
 
 Sin servicio aparte: el backend son Server Actions y Route Handlers de Next.js en Vercel. Las transacciones financieras son funciones SQL en Postgres, y el consumidor de OCR es un Route Handler disparado por cron de Supabase.

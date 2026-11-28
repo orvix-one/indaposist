@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Receipt, Wallet } from "lucide-react";
+import { FileDown, FileText, Receipt, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -22,6 +22,7 @@ import {
   Td,
   Th,
   Tr,
+  buttonClass,
 } from "@/shared/ui";
 import { supplierAccount } from "../domain/payments";
 import { obligationStatusMeta, paymentMethodLabels } from "./labels";
@@ -45,6 +46,12 @@ export function SupplierAccountPanel({ supplierId }: { supplierId: string }) {
 
   return (
     <div className={styles.stack}>
+      <div className={styles.accountActions}>
+        <Link href={`/proveedores/${supplierId}/reporte`} className={buttonClass({ size: "sm" })}>
+          <FileDown aria-hidden />
+          Historial en PDF
+        </Link>
+      </div>
       <StatGrid>
         <Stat label="Saldo en bolivianos" value={formatMoney(account.totals.BOB.balance, "BOB")} meta={`Pagado ${formatMoney(account.totals.BOB.paid, "BOB")}`} />
         <Stat label="Saldo en dólares" value={formatMoney(account.totals.USD.balance, "USD")} meta={`Pagado ${formatMoney(account.totals.USD.paid, "USD")}`} />
