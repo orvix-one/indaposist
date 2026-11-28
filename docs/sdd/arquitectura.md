@@ -40,7 +40,7 @@ Diseñar el esquema físico al implementar cada módulo. Usar tipos decimales pa
 
 1. La aplicación autoriza la carga directa de PDF o imagen a Storage privado y reserva una ruta única. El servidor comprueba la carga y el tipo y tamaño permitidos antes de encolar el trabajo.
 2. Una operación en Postgres registra el estado y encola la referencia al documento. Cada trabajo representa un documento y una versión de extracción.
-3. Un consumidor interno procesa lotes acotados y envía el archivo permitido a OpenAI. La salida estructurada contiene valores extraídos o campos ausentes. Un validador comprueba esquema, formato y coherencia. Se guardan fuente y versión de modelo y esquema junto con el resultado.
+3. Un consumidor interno procesa lotes acotados y envía el archivo permitido a Gemini API a través del adaptador de extracción. La salida estructurada contiene valores extraídos o campos ausentes. Un validador comprueba esquema, formato y coherencia. Se guardan fuente y versión de modelo y esquema junto con el resultado.
 4. El consumidor confirma el mensaje después de persistir el resultado. Los reintentos recuperan el trabajo con una clave idempotente. Los fallos definitivos quedan visibles en la bandeja de revisión para reintento autorizado o carga manual. El flujo de OCR carece de permisos para aprobar boletas o confirmar pagos.
 5. El operador compara documento y sugerencias. La huella identifica archivos idénticos. El control de identidad documental detecta una misma boleta en archivos diferentes. Un caso ambiguo queda sujeto a revisión antes de liquidarse.
 
@@ -55,6 +55,6 @@ Los pagos a proveedores se asignan a boletas seleccionadas. En ventas se aplica 
 ## Acceso y entornos
 
 - Invitación de cuentas internas y alcance por unidad. Las decisiones de acceso usan autorizaciones del servidor y políticas de base de datos. Mantener tablas y objetos bajo mínimo privilegio, con RLS en esquemas expuestos y acceso explícito por operación. [RLS en Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- Storage privado con acceso por autorización y enlaces de vigencia acotada donde corresponda. Credenciales de OpenAI y Supabase privilegiadas solo en los procesos de servidor que las usan.
+- Storage privado con acceso por autorización y enlaces de vigencia acotada donde corresponda. Credenciales de Gemini y Supabase privilegiadas solo en los procesos de servidor que las usan.
 - Entornos de desarrollo y producción independientes. Los datos de prueba versionados son sintéticos. Logs de OCR y operaciones usan identificadores técnicos y omiten el contenido de boletas y comprobantes.
 - Migraciones versionadas y verificación de acceso con cuentas autorizadas y denegadas. Definir respaldo, restauración y conciliación operativa antes del corte a producción.
