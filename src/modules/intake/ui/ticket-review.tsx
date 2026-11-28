@@ -222,12 +222,12 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
         <div className={styles.formPane}>
           {notice === "submitted" && (
             <Alert tone="success" title="Boleta enviada a revisión">
-              Supervisión puede aprobarla, observarla o rechazarla. Mientras tanto queda bloqueada para edición.
+              Administración puede aprobarla, observarla o rechazarla. Mientras tanto queda bloqueada para edición.
             </Alert>
           )}
           {notice !== "submitted" && ticket.status === "in_review" && (
             <Alert tone="info" title="En revisión">
-              La edición está bloqueada hasta que Supervisión la apruebe u observe.
+              La edición está bloqueada hasta que Administración la apruebe, observe o rechace.
             </Alert>
           )}
           {ticket.status === "observed" && (
@@ -363,7 +363,7 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         title="Enviar a revisión"
-        description="Supervisión revisará la boleta. No podrás editarla hasta que la apruebe u observe."
+        description="Administración revisará la boleta. No podrás editarla hasta que la apruebe u observe."
         footer={
           <>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
@@ -392,7 +392,7 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
         <Field label="Comentario" htmlFor="submit-comment" optional>
           <Textarea
             id="submit-comment"
-            placeholder="Contexto para Supervisión, si hace falta."
+            placeholder="Contexto para Administración, si hace falta."
             value={comment}
             onChange={(event) => setComment(event.target.value)}
           />

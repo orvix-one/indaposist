@@ -35,7 +35,8 @@ const SPECS: SeedSpec[] = [
   { seed: 114, status: "approved", weighedAt: "2026-11-21T12:06", office: "2026-11-22" },
 ];
 
-const SUPERVISOR = "Jorge Antelo";
+// Un único usuario resuelve las boletas mientras se valida la matriz de permisos (IND-01.03).
+const SUPERVISOR = currentUser.name;
 
 function history(spec: SeedSpec, code: string): HistoryEntry[] {
   const at = (time: string) => `${spec.office}T${time}:00-04:00`;
