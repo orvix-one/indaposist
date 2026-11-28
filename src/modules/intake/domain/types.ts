@@ -1,3 +1,6 @@
+// Ruta relativa con extensión: los tests de dominio corren con node --test, que no resuelve el alias @/.
+import type { Currency } from "../../../shared/money.ts";
+
 export type TicketStatus = "draft" | "in_review" | "approved" | "observed" | "rejected";
 
 export type DocumentStatus = "uploaded" | "processing" | "suggested" | "failed" | "reviewed" | "duplicate";
@@ -26,7 +29,10 @@ export type QualityRow = { percent: string; discountKg: string };
 
 export type DocumentType = "original" | "photocopy" | "";
 export type Modality = "open" | "closed" | "";
-export type Currency = "BOB" | "USD";
+export type { Currency };
+
+export const QUANTITY_UNITS = ["t", "kg"] as const;
+export type QuantityUnit = (typeof QUANTITY_UNITS)[number];
 
 export type TicketFields = {
   issuerId: string;
@@ -56,20 +62,21 @@ export type TicketFields = {
   archived: boolean;
   archiveLocation: string;
   modality: Modality;
+  quantity: string;
+  quantityUnit: QuantityUnit;
   price: string;
   currency: Currency;
-  exchangeRate: string;
   notes: string;
 };
 
 export type ScalarField = Exclude<
   keyof TicketFields,
-  "quality" | "archived" | "documentType" | "modality" | "currency"
+  "quality" | "archived" | "documentType" | "modality" | "currency" | "quantityUnit"
 >;
 
 export type QualityPath = `quality.${QualityKey}.${keyof QualityRow}`;
 
-export type FieldPath = ScalarField | QualityPath | "documentType" | "modality" | "currency";
+export type FieldPath = ScalarField | QualityPath | "documentType" | "modality" | "currency" | "quantityUnit";
 
 export type Suggestion = { value: string; confidence: number };
 

@@ -33,9 +33,10 @@ export function emptyFields(): TicketFields {
     archived: false,
     archiveLocation: "",
     modality: "",
+    quantity: "",
+    quantityUnit: "t",
     price: "",
     currency: "BOB",
-    exchangeRate: "",
     notes: "",
   };
 }

@@ -3,9 +3,11 @@ import { describe, it } from "node:test";
 import {
   canTransition,
   findDuplicateTicket,
+  liquidQuantity,
   parseDecimal,
   pendingVerification,
   setFieldValue,
+  ticketAmountCents,
   validateDecision,
   validateForSubmit,
   weightChecks,
@@ -33,6 +35,9 @@ function filled(overrides: Partial<TicketFields> = {}): TicketFields {
     quality: { ...base.quality, moisture: { percent: "14,2", discountKg: "320" }, impurity: { percent: "1,6", discountKg: "160" } },
     officeArrivalDate: "2026-11-26",
     documentType: "original",
+    quantity: "26,97",
+    quantityUnit: "t",
+    price: "2.150,00",
     ...overrides,
   };
 }
@@ -143,5 +148,26 @@ describe("findDuplicateTicket", () => {
   it("no confunde boletas de otro emisor ni sin número", () => {
     assert.equal(findDuplicateTicket(existing, { issuerId: "sj", scaleTicket: "88445", folio: "" }), undefined);
     assert.equal(findDuplicateTicket(existing, { issuerId: "pc", scaleTicket: "", folio: "" }), undefined);
+  });
+});
+
+describe("importe de la boleta", () => {
+  it("multiplica carga por precio en centavos", () => {
+    assert.equal(ticketAmountCents(filled()), 5798550n);
+    assert.equal(ticketAmountCents(filled({ quantity: "", price: "2.150" })), null);
+  });
+
+  it("propone la carga desde el peso líquido en la unidad elegida", () => {
+    assert.equal(liquidQuantity(filled(), "t"), "26,97");
+    assert.equal(liquidQuantity(filled(), "kg"), "26.970");
+    assert.equal(liquidQuantity(filled({ liquidKg: "" }), "t"), null);
+  });
+
+  it("exige carga y precio válidos para enviar a revisión", () => {
+    const missing = validateForSubmit({ suggestions: {} }, filled({ quantity: "", price: "" }), []);
+    assert.ok(missing.fieldErrors.quantity && missing.fieldErrors.price);
+    const invalid = validateForSubmit({ suggestions: {} }, filled({ quantity: "0", price: "2.150,555" }), []);
+    assert.equal(invalid.fieldErrors.quantity, "Debe ser mayor que cero.");
+    assert.ok(invalid.fieldErrors.price?.startsWith("Número no válido"));
   });
 });

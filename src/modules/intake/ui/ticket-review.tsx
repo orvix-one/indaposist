@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { currentUser } from "@/modules/access";
 import { campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
+import { CURRENCIES, currencySymbol, formatMoney } from "@/shared/money";
 import {
   Alert,
   Badge,
@@ -31,15 +32,17 @@ import {
 import {
   hasIssues,
   isEditable,
+  liquidQuantity,
   pendingVerification,
   setFieldValue,
+  ticketAmountCents,
   validateForSubmit,
   weightChecks,
   type SubmitIssues,
   type TicketDecision,
   type WeightCheck,
 } from "../domain/rules";
-import type { FieldPath, Ticket, TicketFields } from "../domain/types";
+import { QUANTITY_UNITS, type Currency, type FieldPath, type QuantityUnit, type Ticket, type TicketFields } from "../domain/types";
 import type { SupplierField, SupplierInput } from "../domain/supplier";
 import { useIntake } from "./intake-store";
 import { fieldId, fieldLabel, formatBusinessDate, formatKgExact, formatKgRaw, ticketStatusMeta } from "./labels";
@@ -234,6 +237,7 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
   }, [dirty]);
 
   const status = ticketStatusMeta[ticket.status];
+  const submitAmount = ticketAmountCents(fields);
   const lastObservation = [...ticket.history].reverse().find((entry) => entry.action === "observed");
 
   return (
@@ -368,6 +372,8 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
             </Card>
 
             <OfficeCard fields={fields} setFields={setFields} errors={liveIssues?.fieldErrors ?? {}} />
+
+            <AmountCard fields={fields} setFields={setFields} setValue={setValue} />
           </fieldset>
 
           {children}
@@ -497,7 +503,9 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
           <dt>Llegada a oficina</dt>
           <dd>{formatBusinessDate(fields.officeArrivalDate)}</dd>
           <dt>Peso líquido</dt>
-          <dd className={styles.summaryStrong}>{formatKgRaw(fields.liquidKg)} kg</dd>
+          <dd>{formatKgRaw(fields.liquidKg)} kg</dd>
+          <dt>Importe</dt>
+          <dd className={styles.summaryStrong}>{submitAmount === null ? "—" : formatMoney(submitAmount, fields.currency)}</dd>
         </dl>
         <Field label="Comentario" htmlFor="submit-comment" optional>
           <Textarea
@@ -658,27 +666,85 @@ function OfficeCard({
               <ReviewField path="archiveLocation" placeholder="Archivador, carpeta o caja" className={styles.archiveLocation} />
             )}
           </div>
-          <Field label={fieldLabel("modality")} htmlFor={fieldId("modality")} optional>
+          <ReviewField path="notes" optional multiline placeholder="Acuerdos, diferencias con el original, pendientes…" className={formLayout.spanFull} />
+        </FormGrid>
+      </CardBody>
+    </Card>
+  );
+}
+
+const UNIT_LABELS: Record<QuantityUnit, { option: string; per: string }> = {
+  t: { option: "Toneladas (t)", per: "tonelada" },
+  kg: { option: "Kilogramos (kg)", per: "kilogramo" },
+};
+
+function AmountCard({
+  fields,
+  setFields,
+  setValue,
+}: {
+  fields: TicketFields;
+  setFields: (update: (current: TicketFields) => TicketFields) => void;
+  setValue: (path: FieldPath, value: string) => void;
+}) {
+  const patch = (values: Partial<TicketFields>) => setFields((current) => ({ ...current, ...values }));
+  const fromLiquid = liquidQuantity(fields, fields.quantityUnit);
+  const amount = ticketAmountCents(fields);
+
+  return (
+    <Card>
+      <CardHeader title="Carga e importe" description="Lo que se le debe al proveedor. Los pagos se registran cuando la boleta está aprobada." />
+      <CardBody>
+        <FormGrid>
+          <div className={styles.priceRow}>
+            <ReviewField
+              path="quantity"
+              numeric
+              trailing={fields.quantityUnit}
+              hint={
+                fromLiquid && fromLiquid !== fields.quantity ? (
+                  <Button size="sm" variant="ghost" leadingIcon={<ArrowDownToLine aria-hidden />} onClick={() => setValue("quantity", fromLiquid)}>
+                    Usar peso líquido ({fromLiquid} {fields.quantityUnit})
+                  </Button>
+                ) : undefined
+              }
+            />
+            <Field label={fieldLabel("quantityUnit")} htmlFor={fieldId("quantityUnit")}>
+              <Select
+                id={fieldId("quantityUnit")}
+                value={fields.quantityUnit}
+                onChange={(event) => patch({ quantityUnit: event.target.value as QuantityUnit })}
+              >
+                {QUANTITY_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {UNIT_LABELS[unit].option}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className={styles.priceRow}>
+            <ReviewField path="price" numeric leading={currencySymbol[fields.currency]} hint={`Por ${UNIT_LABELS[fields.quantityUnit].per}.`} />
+            <Field label={fieldLabel("currency")} htmlFor={fieldId("currency")}>
+              <Select id={fieldId("currency")} value={fields.currency} onChange={(event) => patch({ currency: event.target.value as Currency })}>
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label={fieldLabel("modality")} htmlFor={fieldId("modality")} optional hint="Informativa: anticipo y cierre se definirán con Administración.">
             <div className={styles.radioRow} role="radiogroup" aria-label={fieldLabel("modality")} id={fieldId("modality")} tabIndex={-1}>
               <Radio name="modality" label="Abierta" checked={fields.modality === "open"} onChange={() => patch({ modality: "open" })} />
               <Radio name="modality" label="Cerrada" checked={fields.modality === "closed"} onChange={() => patch({ modality: "closed" })} />
             </div>
           </Field>
-          <div className={styles.priceRow}>
-            <ReviewField path="price" numeric optional leading={fields.currency === "USD" ? "$us" : "Bs"} hint="Por tonelada, informado." />
-            <Field label={fieldLabel("currency")} htmlFor={fieldId("currency")}>
-              <Select
-                id={fieldId("currency")}
-                value={fields.currency}
-                onChange={(event) => patch({ currency: event.target.value as TicketFields["currency"], exchangeRate: event.target.value === "BOB" ? "" : fields.exchangeRate })}
-              >
-                <option value="BOB">BOB</option>
-                <option value="USD">USD</option>
-              </Select>
-            </Field>
-          </div>
-          {fields.currency === "USD" && <ReviewField path="exchangeRate" numeric optional placeholder="6,96" hint="Bs por dólar, informado." />}
-          <ReviewField path="notes" optional multiline placeholder="Acuerdos, diferencias con el original, pendientes…" className={formLayout.spanFull} />
+          <dl className={cx(styles.summary, styles.amountSummary)}>
+            <dt>Importe</dt>
+            <dd className={styles.summaryStrong}>{amount === null ? "Completa carga y precio" : formatMoney(amount, fields.currency)}</dd>
+          </dl>
         </FormGrid>
       </CardBody>
     </Card>

@@ -1,6 +1,7 @@
 /* Estado inicial sintético de la recepción: boletas en todos los estados y la bandeja del último lote. Fechas fijas para que servidor y cliente rendericen igual. */
 
 import { emptyFields } from "../domain/fields";
+import { liquidQuantity } from "../domain/rules";
 import type { FieldPath, HistoryEntry, IntakeDocument, Ticket, TicketStatus } from "../domain/types";
 import { currentUser } from "@/modules/access";
 import { generateFields, generateSuggestions, misread } from "./generate";
@@ -90,7 +91,10 @@ function buildTicket(spec: SeedSpec, index: number): Ticket {
     archived: spec.status !== "in_review",
     archiveLocation: spec.status !== "in_review" ? `Archivador A-${(index % 4) + 1}, carpeta ${spec.office.slice(5)}` : "",
     modality: index % 3 === 0 ? ("open" as const) : ("closed" as const),
-    price: index % 3 === 0 ? "" : "2.150,00",
+    quantity: liquidQuantity(truth, "t") ?? "",
+    quantityUnit: "t" as const,
+    price: index % 3 === 0 ? "305,00" : "2.150,00",
+    currency: index % 3 === 0 ? ("USD" as const) : ("BOB" as const),
   };
 
   let fields = isDraft ? { ...emptyFields(), officeArrivalDate: spec.office } : reviewed;

@@ -304,6 +304,11 @@
   min-width: 0;
 }
 
+.amountSummary {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .priceRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 96px;

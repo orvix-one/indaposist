@@ -64,10 +64,11 @@ const scalarLabels: Record<string, string> = {
   officeArrivalDate: "Llegada a oficina",
   documentType: "Tipo de documento",
   archiveLocation: "Ubicación del archivo",
-  modality: "Modalidad",
-  price: "Precio",
+  modality: "Modalidad de precio",
+  quantity: "Carga a pagar",
+  quantityUnit: "Unidad",
+  price: "Precio por unidad",
   currency: "Moneda",
-  exchangeRate: "Tipo de cambio",
   notes: "Observaciones",
 };
 
