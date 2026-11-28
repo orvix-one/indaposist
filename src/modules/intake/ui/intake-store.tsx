@@ -18,7 +18,8 @@ export const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png", "im
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const CONCURRENCY = 3;
 
-const FIELD_BY_KIND: Record<CatalogKind, keyof TicketFields> = {
+// Las unidades de negocio no están en la boleta: se toman del emisor.
+const FIELD_BY_KIND: Partial<Record<CatalogKind, keyof TicketFields>> = {
   issuers: "issuerId",
   sites: "siteId",
   campaigns: "campaignId",
@@ -116,7 +117,11 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
   }, [catalogs.issuers, catalogs.sites, catalogs.products, catalogs.campaigns, suppliers]);
 
   useEffect(
-    () => registerCatalogCheck((kind, id) => stateRef.current.tickets.some((ticket) => ticket.fields[FIELD_BY_KIND[kind]] === id)),
+    () =>
+      registerCatalogCheck((kind, id) => {
+        const field = FIELD_BY_KIND[kind];
+        return field ? stateRef.current.tickets.some((ticket) => ticket.fields[field] === id) : false;
+      }),
     [registerCatalogCheck],
   );
 

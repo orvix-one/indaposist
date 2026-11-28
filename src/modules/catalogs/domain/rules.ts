@@ -95,3 +95,12 @@ export function defaultCampaignId(campaigns: Campaign[], today: string): string 
   if (current) return current.id;
   return [...open].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]?.id ?? "";
 }
+
+/** Unidad de negocio de una boleta según su emisor (provisional, D02). Cadena vacía si no hay. */
+export function businessUnitIdFor(issuerId: string, issuers: Array<Pick<NamedRecord, "id" | "businessUnitId">>): string {
+  return issuers.find((issuer) => issuer.id === issuerId)?.businessUnitId ?? "";
+}
+
+export function issuersInUnit(unitId: string, issuers: NamedRecord[]): NamedRecord[] {
+  return issuers.filter((issuer) => issuer.businessUnitId === unitId);
+}

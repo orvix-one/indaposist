@@ -4,7 +4,7 @@ import { Inbox, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { campaignLabel, useCatalogs } from "@/modules/catalogs";
+import { businessUnitIdFor, campaignLabel, useCatalogs } from "@/modules/catalogs";
 import {
   Badge,
   Button,
@@ -52,10 +52,11 @@ const STATUS_TABS: Array<{ status?: TicketStatus; label: string }> = [
 export function TicketsList({ status }: { status?: TicketStatus }) {
   const router = useRouter();
   const { tickets } = useIntake();
-  const { sites, campaigns, products } = useCatalogs();
+  const { sites, campaigns, products, issuers, units } = useCatalogs();
   const { suppliers } = useSuppliers();
   const [query, setQuery] = useState("");
   const [siteId, setSiteId] = useState("");
+  const [unitId, setUnitId] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [dateField, setDateField] = useState<"truck" | "office">("truck");
   const [from, setFrom] = useState("");
@@ -67,6 +68,7 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
     return tickets.filter((ticket) => {
       if (status && ticket.status !== status) return false;
       if (siteId && ticket.fields.siteId !== siteId) return false;
+      if (unitId && businessUnitIdFor(ticket.fields.issuerId, issuers) !== unitId) return false;
       if (campaignId && ticket.fields.campaignId !== campaignId) return false;
       const date = (dateField === "truck" ? ticket.fields.weighedAt : ticket.fields.officeArrivalDate).slice(0, 10);
       if (from && (!date || date < from)) return false;
@@ -77,9 +79,9 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(needle));
     });
-  }, [tickets, suppliers, status, query, siteId, campaignId, dateField, from, to]);
+  }, [tickets, suppliers, issuers, status, query, siteId, unitId, campaignId, dateField, from, to]);
 
-  const filtersActive = Boolean(query || siteId || from || to || campaignId);
+  const filtersActive = Boolean(query || siteId || unitId || from || to || campaignId);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -92,6 +94,7 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
   const clearFilters = () => {
     setQuery("");
     setSiteId("");
+    setUnitId("");
     setCampaignId("");
     setFrom("");
     setTo("");
@@ -138,6 +141,14 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
               value={query}
               onChange={(event) => resetPage(setQuery)(event.target.value)}
             />
+            <Select controlSize="sm" aria-label="Unidad de negocio" value={unitId} onChange={(event) => resetPage(setUnitId)(event.target.value)} className={styles.filterSelect}>
+              <option value="">Todas las unidades</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.active ? unit.name : `${unit.name} (inactiva)`}
+                </option>
+              ))}
+            </Select>
             <Select controlSize="sm" aria-label="Acopio" value={siteId} onChange={(event) => resetPage(setSiteId)(event.target.value)} className={styles.filterSelect}>
               <option value="">Todos los acopios</option>
               {sites.map((site) => (
@@ -202,7 +213,7 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
               <tr>
                 <Th>N° boleta</Th>
                 <Th>Proveedor</Th>
-                <Th>Acopio</Th>
+                <Th>Unidad · acopio</Th>
                 <Th>Pesaje</Th>
                 <Th>Llegada oficina</Th>
                 <Th numeric>Líquido (kg)</Th>
@@ -234,7 +245,12 @@ export function TicketsList({ status }: { status?: TicketStatus }) {
                         <span className={styles.muted}>Sin proveedor</span>
                       )}
                     </Td>
-                    <Td muted>{sites.find((site) => site.id === ticket.fields.siteId)?.name ?? "—"}</Td>
+                    <Td>
+                      <CellStack
+                        primary={units.find((unit) => unit.id === businessUnitIdFor(ticket.fields.issuerId, issuers))?.name ?? "Sin unidad"}
+                        secondary={sites.find((site) => site.id === ticket.fields.siteId)?.name ?? "Sin acopio"}
+                      />
+                    </Td>
                     <Td muted>{formatBusinessDate(ticket.fields.weighedAt)}</Td>
                     <Td muted>{formatBusinessDate(ticket.fields.officeArrivalDate)}</Td>
                     <Td numeric>{formatKg(parseDecimal(ticket.fields.liquidKg))}</Td>

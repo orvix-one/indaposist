@@ -1,6 +1,6 @@
 /* Datos sintéticos iniciales. Las boletas de ejemplo de intake usan estos mismos ids. */
 
-import type { Campaign, Issuer, Product, Site } from "../domain/types.ts";
+import type { BusinessUnit, Campaign, Issuer, Product, Site } from "../domain/types.ts";
 
 const at = "2026-11-01T12:00:00.000Z";
 const named = (id: string, name: string) => ({ id, name, active: true, createdAt: at, updatedAt: at });
@@ -13,10 +13,13 @@ export const seedSites: Site[] = [
   named("pa", "Acopio Pailón"),
 ];
 
+// Unidades de negocio relevadas el 18/11. Cada emisor apunta a una: es la relación provisional hasta que INDAPO la confirme (D02).
+export const seedUnits: BusinessUnit[] = [named("sj", "San Julián"), named("cc", "Cuatro Cañadas"), named("pl", "Proléa")];
+
 export const seedIssuers: Issuer[] = [
-  named("sj", "Balanza San Julián"),
-  named("cc", "Balanza Cuatro Cañadas"),
-  named("pc", "Proléa/Cargill"),
+  { ...named("sj", "Balanza San Julián"), businessUnitId: "sj" },
+  { ...named("cc", "Balanza Cuatro Cañadas"), businessUnitId: "cc" },
+  { ...named("pc", "Proléa/Cargill"), businessUnitId: "pl" },
 ];
 
 export const seedCampaigns: Campaign[] = [

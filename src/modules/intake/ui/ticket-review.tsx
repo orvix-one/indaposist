@@ -4,7 +4,7 @@ import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, MessageS
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { currentUser } from "@/modules/access";
-import { campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
+import { businessUnitIdFor, campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
 import { CURRENCIES, currencySymbol, formatMoney } from "@/shared/money";
 import {
   Alert,
@@ -124,7 +124,8 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
   const liveIssues = issues ? validateForSubmit(ticket, fields, verified) : null;
   const errorCount = liveIssues ? Object.keys(liveIssues.fieldErrors).length : 0;
   const [creatingSupplier, setCreatingSupplier] = useState(false);
-  const { issuers, sites, campaigns, products } = useCatalogs();
+  const { issuers, sites, campaigns, products, units } = useCatalogs();
+  const unitName = units.find((unit) => unit.id === businessUnitIdFor(fields.issuerId, issuers))?.name;
   const { suppliers } = useSuppliers();
   const [supplierQuery, setSupplierQuery] = useState("");
   const supplier = suppliers.find((row) => row.id === fields.supplierId);
@@ -317,6 +318,9 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
               <CardBody>
                 <FormGrid>
                   <ReviewField path="issuerId" options={options.issuers} />
+                  <Field label="Unidad de negocio" htmlFor="field-business-unit" hint="Según el emisor (provisional).">
+                    <Input id="field-business-unit" value={unitName ?? (fields.issuerId ? "Emisor sin unidad" : "Elige el emisor")} readOnly disabled />
+                  </Field>
                   <ReviewField path="siteId" options={options.sites} />
                   <ReviewField path="campaignId" options={options.campaigns} />
                   <ReviewField path="productId" options={options.products} />

@@ -4,7 +4,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Repository } from "../domain/repository";
-import { campaignsUsingProduct, defaultCampaignId, validateCampaign, validateNamed } from "../domain/rules";
+import { campaignsUsingProduct, defaultCampaignId, issuersInUnit, validateCampaign, validateNamed } from "../domain/rules";
 import type {
   Campaign,
   CampaignField,
@@ -16,7 +16,7 @@ import type {
   NamedRecord,
 } from "../domain/types";
 import { createMemoryRepository } from "../mock/memory-repository";
-import { seedCampaigns, seedIssuers, seedProducts, seedSites } from "../mock/seed";
+import { seedCampaigns, seedIssuers, seedProducts, seedSites, seedUnits } from "../mock/seed";
 
 export type ReferenceCheck = (kind: CatalogKind, id: string) => boolean;
 export type SaveResult<T, K extends string> = { ok: true; row: T } | { ok: false; errors: FieldErrors<K> };
@@ -39,14 +39,15 @@ type CatalogsContextValue = Lists & {
 
 const CatalogsContext = createContext<CatalogsContextValue | null>(null);
 
-const KINDS: CatalogKind[] = ["products", "sites", "issuers", "campaigns"];
-const EMPTY: Lists = { products: [], sites: [], issuers: [], campaigns: [] };
+const KINDS: CatalogKind[] = ["products", "sites", "issuers", "units", "campaigns"];
+const EMPTY: Lists = { products: [], sites: [], issuers: [], units: [], campaigns: [] };
 
 function createRepos(): Repos {
   return {
     products: createMemoryRepository(seedProducts, { prefix: "prd" }),
     sites: createMemoryRepository(seedSites, { prefix: "site" }),
     issuers: createMemoryRepository(seedIssuers, { prefix: "iss" }),
+    units: createMemoryRepository(seedUnits, { prefix: "unit" }),
     campaigns: createMemoryRepository(seedCampaigns, { prefix: "cmp" }),
   };
 }
@@ -95,6 +96,7 @@ export function CatalogsProvider({ children }: { children: ReactNode }) {
       const validation = validateNamed(input, lists[kind], id);
       if (!validation.ok) return validation;
       const clean = { ...input, name: input.name.trim() };
+      if (kind !== "issuers") delete clean.businessUnitId;
       const row = id ? await repos[kind].update(id, clean) : await repos[kind].create(clean);
       await refresh(kind);
       return { ok: true, row };
@@ -121,9 +123,13 @@ export function CatalogsProvider({ children }: { children: ReactNode }) {
         const count = campaignsUsingProduct(id, lists.campaigns).length;
         if (count > 0) return `Tiene ${plural(count, "campaña asociada", "campañas asociadas")}.`;
       }
+      if (kind === "units") {
+        const count = issuersInUnit(id, lists.issuers).length;
+        if (count > 0) return `Tiene ${plural(count, "emisor asociado", "emisores asociados")}.`;
+      }
       return [...checksRef.current].some((check) => check(kind, id)) ? "Tiene boletas asociadas." : null;
     },
-    [lists.campaigns],
+    [lists.campaigns, lists.issuers],
   );
 
   const remove = useCallback<CatalogsContextValue["remove"]>(

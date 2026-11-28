@@ -3,9 +3,11 @@ import { describe, it } from "node:test";
 import {
   campaignLabel,
   campaignsForDate,
+  businessUnitIdFor,
   campaignsUsingProduct,
   defaultCampaignId,
   isSelectable,
+  issuersInUnit,
   normalizeName,
   selectableOptions,
   validateCampaign,
@@ -139,5 +141,23 @@ describe("campañas por fecha", () => {
     assert.equal(defaultCampaignId([campaign(), invierno], "2026-11-27"), "i26");
     assert.equal(defaultCampaignId([campaign(), invierno], "2027-01-10"), "i26");
     assert.equal(defaultCampaignId([campaign({ status: "closed" })], "2026-05-01"), "");
+  });
+});
+
+describe("unidad de negocio por emisor", () => {
+  const issuers = [
+    { id: "sj", name: "Balanza San Julián", active: true, businessUnitId: "sj", createdAt: at, updatedAt: at },
+    { id: "pc", name: "Proléa/Cargill", active: true, businessUnitId: "pl", createdAt: at, updatedAt: at },
+    { id: "xx", name: "Sin unidad", active: true, createdAt: at, updatedAt: at },
+  ];
+
+  it("toma la unidad del emisor de la boleta", () => {
+    assert.equal(businessUnitIdFor("pc", issuers), "pl");
+    assert.equal(businessUnitIdFor("xx", issuers), "");
+    assert.equal(businessUnitIdFor("", issuers), "");
+  });
+
+  it("lista los emisores de una unidad", () => {
+    assert.deepEqual(issuersInUnit("sj", issuers).map((issuer) => issuer.id), ["sj"]);
   });
 });

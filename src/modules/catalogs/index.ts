@@ -1,4 +1,5 @@
 export type {
+  BusinessUnit,
   Campaign,
   CampaignInput,
   CampaignStatus,
@@ -14,8 +15,8 @@ export type {
   Validation,
 } from "./domain/types";
 export type { Repository } from "./domain/repository";
-export { campaignLabel, campaignsForDate, isSelectable, selectableOptions, type Option } from "./domain/rules";
-export { seedCampaigns, seedIssuers, seedProducts, seedSites } from "./mock/seed";
+export { businessUnitIdFor, campaignLabel, campaignsForDate, isSelectable, selectableOptions, type Option } from "./domain/rules";
+export { seedCampaigns, seedIssuers, seedProducts, seedSites, seedUnits } from "./mock/seed";
 export { createMemoryRepository } from "./mock/memory-repository";
 export { CatalogsProvider, useCatalogs, type ReferenceCheck } from "./ui/catalogs-store";
 export { CampaignsPage } from "./ui/campaigns-page";

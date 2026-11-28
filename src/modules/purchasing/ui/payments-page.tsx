@@ -4,7 +4,7 @@ import { Wallet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useCatalogs } from "@/modules/catalogs";
+import { businessUnitIdFor, useCatalogs } from "@/modules/catalogs";
 import { formatBusinessDate, useSuppliers } from "@/modules/intake";
 import { formatMoney } from "@/shared/money";
 import {
@@ -47,9 +47,10 @@ export function PaymentsPage() {
   const router = useRouter();
   const { rows, payments } = usePayments();
   const { suppliers } = useSuppliers();
-  const { issuers } = useCatalogs();
+  const { issuers, units } = useCatalogs();
   const [state, setState] = useState<StateFilter>("open");
   const [supplierId, setSupplierId] = useState("");
+  const [unitId, setUnitId] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
 
@@ -64,22 +65,27 @@ export function PaymentsPage() {
     return result;
   }, [payments]);
 
-  const filtered = useMemo(() => {
+  // Filtros de búsqueda, unidad y proveedor; el estado se aplica después para que el contador de abiertas los respete.
+  const scoped = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return payable
       .filter((row) => {
-        if (state === "open" && row.obligation.status === "paid") return false;
-        if (state === "closed" && row.obligation.status !== "paid") return false;
         if (supplierId && row.ticket.fields.supplierId !== supplierId) return false;
+        if (unitId && businessUnitIdFor(row.ticket.fields.issuerId, issuers) !== unitId) return false;
         if (!needle) return true;
         return [row.ticket.code, row.ticket.fields.scaleTicket].some((value) => value.toLowerCase().includes(needle));
       })
       .sort((a, b) => a.ticket.fields.officeArrivalDate.localeCompare(b.ticket.fields.officeArrivalDate));
-  }, [payable, state, supplierId, query]);
+  }, [payable, issuers, supplierId, unitId, query]);
+
+  const filtered = useMemo(
+    () => scoped.filter((row) => (state === "all" ? true : state === "open" ? row.obligation.status !== "paid" : row.obligation.status === "paid")),
+    [scoped, state],
+  );
 
   const totals = useMemo(() => totalsByCurrency(filtered.map((row) => row.obligation)), [filtered]);
-  const openCount = payable.filter((row) => row.obligation.status !== "paid").length;
-  const filtersActive = Boolean(supplierId || query);
+  const openCount = scoped.filter((row) => row.obligation.status !== "paid").length;
+  const filtersActive = Boolean(supplierId || unitId || query);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -102,7 +108,7 @@ export function PaymentsPage() {
         <StatGrid>
           <Stat label="Saldo en bolivianos" value={formatMoney(totals.BOB.balance, "BOB")} meta={`Pagado ${formatMoney(totals.BOB.paid, "BOB")}`} />
           <Stat label="Saldo en dólares" value={formatMoney(totals.USD.balance, "USD")} meta={`Pagado ${formatMoney(totals.USD.paid, "USD")}`} />
-          <Stat label="Boletas abiertas" value={openCount} meta={`De ${payable.length} aprobadas con importe`} />
+          <Stat label="Boletas abiertas" value={openCount} meta={`De ${scoped.length} aprobadas con importe${filtersActive ? " en el filtro" : ""}`} />
         </StatGrid>
       </div>
 
@@ -110,6 +116,14 @@ export function PaymentsPage() {
         <Toolbar bordered label="Filtros">
           <ToolbarGroup>
             <SearchInput controlSize="sm" placeholder="N° de boleta o tiquete" aria-label="Buscar boletas" value={query} onChange={(event) => reset(setQuery)(event.target.value)} />
+            <Select controlSize="sm" aria-label="Unidad de negocio" value={unitId} onChange={(event) => reset(setUnitId)(event.target.value)} className={styles.filterSelect}>
+              <option value="">Todas las unidades</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </Select>
             <Select controlSize="sm" aria-label="Proveedor" value={supplierId} onChange={(event) => reset(setSupplierId)(event.target.value)} className={styles.filterSelect}>
               <option value="">Todos los proveedores</option>
               {supplierOptions.map((supplier) => (
@@ -147,6 +161,7 @@ export function PaymentsPage() {
                   onClick={() => {
                     setQuery("");
                     setSupplierId("");
+                    setUnitId("");
                     setPage(0);
                   }}
                 >
@@ -161,7 +176,7 @@ export function PaymentsPage() {
               <tr>
                 <Th>N° boleta</Th>
                 <Th>Proveedor</Th>
-                <Th>Emisor</Th>
+                <Th>Unidad · emisor</Th>
                 <Th>Llegada oficina</Th>
                 <Th numeric>Importe</Th>
                 <Th numeric>Pagado</Th>
@@ -188,7 +203,12 @@ export function PaymentsPage() {
                       />
                     </Td>
                     <Td>{supplier ? <CellStack primary={supplier.name} secondary={supplier.taxId} /> : <span className={styles.muted}>Sin proveedor</span>}</Td>
-                    <Td muted>{issuers.find((issuer) => issuer.id === ticket.fields.issuerId)?.name ?? "—"}</Td>
+                    <Td>
+                      <CellStack
+                        primary={units.find((unit) => unit.id === businessUnitIdFor(ticket.fields.issuerId, issuers))?.name ?? "Sin unidad"}
+                        secondary={issuers.find((issuer) => issuer.id === ticket.fields.issuerId)?.name ?? "—"}
+                      />
+                    </Td>
                     <Td muted>{formatBusinessDate(ticket.fields.officeArrivalDate)}</Td>
                     <Td numeric>{formatMoney(obligation.amountCents, obligation.currency)}</Td>
                     <Td numeric>{formatMoney(obligation.paidCents, obligation.currency)}</Td>

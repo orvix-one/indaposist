@@ -13,7 +13,7 @@ Perfiles propuestos para revisión. Una persona puede ejercer más de una funci�
 | Administración | Gestionar usuarios y catálogos, ejecutar operaciones financieras autorizadas y resolver excepciones documentales con motivo. |
 | Consulta | Leer y exportar los datos permitidos. |
 
-Las cuentas se crean por invitación. El sistema valida los permisos en servidor y base de datos. Campañas, productos, emisores, acopios y unidades de negocio tienen identificadores propios. Se desactivan registros referenciados para preservar el histórico. Los cambios de permisos y operaciones sensibles quedan auditados.
+Las cuentas se crean por invitación. El sistema valida los permisos en servidor y base de datos. Campañas, productos, emisores, acopios y unidades de negocio tienen identificadores propios. Mientras INDAPO confirma su relación (D02), cada emisor pertenece a una unidad de negocio y la boleta toma la unidad de su emisor: San Julián, Cuatro Cañadas o Proléa. Se desactivan registros referenciados para preservar el histórico. Los cambios de permisos y operaciones sensibles quedan auditados.
 
 **Aceptación**. Un usuario dado de baja pierde el acceso operativo. Una cuenta de consulta puede leer y exportar en su ámbito. Solo las funciones autorizadas pueden mutar datos y consultar documentos de la unidad correspondiente.
 
