@@ -86,3 +86,27 @@ export function totalsByCurrency(obligations: Obligation[]) {
   }
   return totals;
 }
+
+export type SupplierAccount = {
+  totals: ReturnType<typeof totalsByCurrency>;
+  obligations: Obligation[];
+  openCount: number;
+  paidCount: number;
+  payments: Payment[];
+};
+
+/** Cuenta de un proveedor: sus boletas aprobadas con importe, lo pagado y el saldo por moneda, y sus pagos del más reciente al más antiguo. */
+export function supplierAccount(supplierId: string, tickets: PayableTicket[], payments: Payment[]): SupplierAccount {
+  const own = tickets.filter((ticket) => ticket.supplierId === supplierId && ticket.approved);
+  const obligations = own.map((ticket) => obligationFor(ticket, payments)).filter((item): item is Obligation => item !== null);
+  const ids = new Set(own.map((ticket) => ticket.id));
+  return {
+    totals: totalsByCurrency(obligations),
+    obligations,
+    openCount: obligations.filter((item) => item.status !== "paid").length,
+    paidCount: obligations.filter((item) => item.status === "paid").length,
+    payments: payments
+      .filter((payment) => ids.has(payment.ticketId))
+      .sort((a, b) => b.paidOn.localeCompare(a.paidOn) || b.recordedAt.localeCompare(a.recordedAt)),
+  };
+}

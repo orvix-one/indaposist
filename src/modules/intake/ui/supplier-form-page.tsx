@@ -3,7 +3,7 @@
 import { Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { RemoveDialog } from "@/modules/catalogs";
 import {
   Alert,
@@ -28,7 +28,8 @@ import { SUPPLIERS_ROUTE } from "./suppliers-list";
 import { useSuppliers } from "./suppliers-store";
 import styles from "./suppliers.module.css";
 
-export function SupplierFormPage({ supplierId }: { supplierId?: string }) {
+/* `children` permite que la ruta agregue secciones de otros módulos (por ejemplo, la cuenta del proveedor) en la ficha. */
+export function SupplierFormPage({ supplierId, children }: { supplierId?: string; children?: ReactNode }) {
   const { suppliers, loading } = useSuppliers();
   const record = supplierId ? suppliers.find((row) => row.id === supplierId) : undefined;
   const crumbs = [{ label: "Recepción" }, { label: "Proveedores", href: SUPPLIERS_ROUTE }];
@@ -64,6 +65,7 @@ export function SupplierFormPage({ supplierId }: { supplierId?: string }) {
         title={record ? record.name : "Nuevo proveedor"}
       />
       <SupplierForm key={record?.updatedAt ?? "new"} record={record} />
+      {record && children}
     </>
   );
 }

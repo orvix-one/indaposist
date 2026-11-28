@@ -26,7 +26,7 @@ export function todayInLaPaz(): string {
 }
 
 function toPayable(ticket: Ticket): PayableTicket {
-  return { id: ticket.id, approved: ticket.status === "approved", currency: ticket.fields.currency, amountCents: ticketAmountCents(ticket.fields) };
+  return { id: ticket.id, supplierId: ticket.fields.supplierId, approved: ticket.status === "approved", currency: ticket.fields.currency, amountCents: ticketAmountCents(ticket.fields) };
 }
 
 export function PaymentsProvider({ children }: { children: ReactNode }) {

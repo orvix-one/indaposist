@@ -2,3 +2,4 @@ export type { Obligation, ObligationStatus, Payment, PaymentMethod } from "./dom
 export { PaymentsProvider, usePayments } from "./ui/payments-store";
 export { PaymentsPage } from "./ui/payments-page";
 export { TicketPayments } from "./ui/ticket-payments";
+export { SupplierAccountPanel } from "./ui/supplier-account";

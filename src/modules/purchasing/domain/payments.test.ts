@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { obligationFor, paymentBlocker, previewApplied, totalsByCurrency, validatePayment } from "./payments.ts";
+import { obligationFor, paymentBlocker, previewApplied, supplierAccount, totalsByCurrency, validatePayment } from "./payments.ts";
 import type { PayableTicket, Payment, PaymentInput } from "./types.ts";
 
 const TODAY = "2026-11-28";
 
-const bobTicket: PayableTicket = { id: "bl-1", approved: true, currency: "BOB", amountCents: 1_000_000n };
-const usdTicket: PayableTicket = { id: "bl-2", approved: true, currency: "USD", amountCents: 1_000_000n };
+const bobTicket: PayableTicket = { id: "bl-1", supplierId: "s1", approved: true, currency: "BOB", amountCents: 1_000_000n };
+const usdTicket: PayableTicket = { id: "bl-2", supplierId: "s1", approved: true, currency: "USD", amountCents: 1_000_000n };
 
 function payment(ticketId: string, appliedCents: bigint, extra: Partial<Payment> = {}): Payment {
   return {
@@ -121,5 +121,34 @@ describe("previewApplied y totales", () => {
     const totals = totalsByCurrency([obligationFor(bobTicket, [payment("bl-1", 400_000n)])!, obligationFor(usdTicket, [])!]);
     assert.deepEqual(totals.BOB, { amount: 1_000_000n, paid: 400_000n, balance: 600_000n });
     assert.deepEqual(totals.USD, { amount: 1_000_000n, paid: 0n, balance: 1_000_000n });
+  });
+});
+
+describe("supplierAccount", () => {
+  const otherSupplier: PayableTicket = { id: "bl-3", supplierId: "s2", approved: true, currency: "BOB", amountCents: 500_000n };
+  const draft: PayableTicket = { id: "bl-4", supplierId: "s1", approved: false, currency: "BOB", amountCents: 700_000n };
+  const payments = [
+    payment("bl-1", 1_000_000n, { paidOn: "2026-11-20" }),
+    payment("bl-2", 300_000n, { paidOn: "2026-11-26", currency: "BOB" }),
+    payment("bl-3", 100_000n),
+  ];
+
+  it("suma por moneda solo las boletas aprobadas del proveedor", () => {
+    const account = supplierAccount("s1", [bobTicket, usdTicket, otherSupplier, draft], payments);
+    assert.deepEqual(account.totals.BOB, { amount: 1_000_000n, paid: 1_000_000n, balance: 0n });
+    assert.deepEqual(account.totals.USD, { amount: 1_000_000n, paid: 300_000n, balance: 700_000n });
+    assert.equal(account.openCount, 1);
+    assert.equal(account.paidCount, 1);
+  });
+
+  it("lista sus pagos del más reciente al más antiguo", () => {
+    const account = supplierAccount("s1", [bobTicket, usdTicket, otherSupplier], payments);
+    assert.deepEqual(account.payments.map((item) => item.ticketId), ["bl-2", "bl-1"]);
+  });
+
+  it("queda en cero para un proveedor sin boletas", () => {
+    const account = supplierAccount("s9", [bobTicket], payments);
+    assert.equal(account.obligations.length, 0);
+    assert.equal(account.payments.length, 0);
   });
 });

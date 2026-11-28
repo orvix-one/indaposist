@@ -66,6 +66,7 @@ export type Obligation = {
 /** Boleta vista desde compras: solo lo necesario para pagarla. */
 export type PayableTicket = {
   id: string;
+  supplierId: string;
   approved: boolean;
   currency: Currency;
   amountCents: bigint | null;

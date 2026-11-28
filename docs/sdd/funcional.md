@@ -38,7 +38,7 @@ Reglas definidas por Orvix el 28 de noviembre de 2026, a validar con Administrac
 - Cada boleta aprobada genera una obligación por su importe, en la moneda de la boleta. Admite pagos totales o parciales en fechas distintas. Su estado de pago es **abierta** mientras tenga saldo, sin pagos o con pago parcial, y **cerrada** cuando queda pagada. Este estado es distinto de la modalidad de precio abierta o cerrada del relevamiento.
 - Un pago registra fecha, importe y moneda (BOB o USD), tipo de cambio en bolivianos por dólar vigente en la fecha del pago, método (transferencia bancaria, QR, cheque, depósito u otro), banco, cuenta bancaria, responsable y comprobante adjunto. Todos son obligatorios.
 - Cada pago conserva su propio tipo de cambio. Si su moneda difiere de la de la boleta, el importe se convierte con esa tasa y se redondea a centavos. Se conservan el importe original, la tasa y el importe aplicado. Un pago no puede superar el saldo.
-- La boleta muestra importe, pagado, saldo, estado e historial de pagos. La página de pagos lista las boletas aprobadas con filtros por estado y proveedor y totales por moneda, sin mezclarlas.
+- La boleta muestra importe, pagado, saldo, estado e historial de pagos. La página de pagos lista las boletas aprobadas con filtros por estado y proveedor y totales por moneda, sin mezclarlas. La ficha de cada proveedor muestra todas sus boletas, sus pagos y su saldo y lo pagado por moneda.
 
 **Aceptación**. Una boleta de Bs 10.000 con un pago de Bs 4.000 queda abierta con Bs 6.000 de saldo. Una boleta en USD pagada en bolivianos aplica el importe convertido con la tasa de ese pago, y dos pagos en fechas distintas conservan tasas distintas. Un pago mayor al saldo se rechaza. Al cubrir el saldo, la boleta queda cerrada.
 
