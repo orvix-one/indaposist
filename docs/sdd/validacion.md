@@ -17,6 +17,8 @@ Administración es la contraparte de validación. Andrés compartirá las boleta
 | D07 | Administración y Orvix | Titularidad y tratamiento de documentos, muestras autorizadas, tolerancias, mediciones de OCR y volumen a validar. | IND-02 |
 | D08 | Administración y Orvix | Campaña de arranque, saldos de apertura, importación acordada y conciliación de corte. | IND-01 a IND-06 |
 
+El 28 de noviembre Orvix definió de forma provisional dos partes de estas decisiones, a validar con Administración. Para D05, un único usuario de Administración puede hacer todo mientras se valida la matriz de permisos. Para D04, el registro de pagos por boleta con tipo de cambio por pago descrito en [Pagos por boleta](funcional.md#pagos-por-boleta). Siguen abiertos anticipo y cierre, bonos y ajustes, pago de varias boletas con glosa, redondeo y reversión. Estas pantallas se construyen en memoria, como la recepción, antes de la persistencia.
+
 Mientras se aprueba D07, la validación aritmética de pesos tolera 1 kg para absorber el redondeo de los descuentos de calidad impresos con decimales.
 
 ## Orden de construcción
