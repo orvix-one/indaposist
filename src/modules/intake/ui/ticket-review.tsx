@@ -22,6 +22,7 @@ import {
   Mono,
   PageHeader,
   Radio,
+  SearchInput,
   Select,
   Switch,
   Textarea,
@@ -43,7 +44,8 @@ import {
   type WeightCheck,
 } from "../domain/rules";
 import { QUANTITY_UNITS, type Currency, type FieldPath, type QuantityUnit, type Ticket, type TicketFields } from "../domain/types";
-import type { SupplierField, SupplierInput } from "../domain/supplier";
+import { EMPTY_SUPPLIER, matchesSupplier, type SupplierField, type SupplierInput } from "../domain/supplier";
+import { RuaBadge } from "./supplier-form-page";
 import { useIntake } from "./intake-store";
 import { fieldId, fieldLabel, formatBusinessDate, formatKgExact, formatKgRaw, ticketStatusMeta } from "./labels";
 import { QualityTable } from "./quality-table";
@@ -124,6 +126,7 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
   const [creatingSupplier, setCreatingSupplier] = useState(false);
   const { issuers, sites, campaigns, products } = useCatalogs();
   const { suppliers } = useSuppliers();
+  const [supplierQuery, setSupplierQuery] = useState("");
   const supplier = suppliers.find((row) => row.id === fields.supplierId);
   const issuerName = issuers.find((row) => row.id === fields.issuerId)?.name;
   const siteName = sites.find((row) => row.id === fields.siteId)?.name;
@@ -133,9 +136,13 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
       sites: selectableOptions(sites, fields.siteId),
       campaigns: selectableOptions(campaigns, fields.campaignId, (row) => campaignLabel(row, products)),
       products: selectableOptions(products, fields.productId),
-      suppliers: selectableOptions(suppliers, fields.supplierId, (row) => `${row.name} · ${row.taxId}`),
+      suppliers: selectableOptions(
+        suppliers.filter((row) => row.id === fields.supplierId || matchesSupplier(row, supplierQuery)),
+        fields.supplierId,
+        (row) => [row.name, row.taxId, row.rua].filter(Boolean).join(" · "),
+      ),
     }),
-    [issuers, sites, campaigns, products, suppliers, fields.issuerId, fields.siteId, fields.campaignId, fields.productId, fields.supplierId],
+    [issuers, sites, campaigns, products, suppliers, supplierQuery, fields.issuerId, fields.siteId, fields.campaignId, fields.productId, fields.supplierId],
   );
 
   const setValue = useCallback((path: FieldPath, value: string) => {
@@ -326,15 +333,33 @@ function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNo
               <CardHeader title="Proveedor y transporte" />
               <CardBody>
                 <FormGrid>
+                  {editable && (
+                    <Field label="Buscar proveedor" htmlFor="supplier-search" optional className={formLayout.span2}>
+                      <SearchInput
+                        id="supplier-search"
+                        placeholder="Nombre, NIT, CI o RUA"
+                        value={supplierQuery}
+                        onChange={(event) => setSupplierQuery(event.target.value)}
+                      />
+                    </Field>
+                  )}
                   <ReviewField
                     path="supplierId"
                     options={options.suppliers}
                     className={formLayout.span2}
                     hint={
-                      editable && !fields.supplierId ? (
-                        <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden />} onClick={() => setCreatingSupplier(true)}>
-                          Crear proveedor
-                        </Button>
+                      supplier ? (
+                        <span className={styles.supplierHint}>
+                          <RuaBadge rua={supplier.rua} />
+                          {supplier.rua || "El proveedor no tiene RUA registrado."}
+                        </span>
+                      ) : editable ? (
+                        <span className={styles.supplierHint}>
+                          {supplierQuery && options.suppliers.length === 0 && "Ningún proveedor coincide."}
+                          <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden />} onClick={() => setCreatingSupplier(true)}>
+                            Crear proveedor
+                          </Button>
+                        </span>
                       ) : undefined
                     }
                   />
@@ -547,7 +572,7 @@ function CreateSupplierDialog({
 
   const submit = async () => {
     setSaving(true);
-    const result = await save({ ...values, active: true });
+    const result = await save({ ...EMPTY_SUPPLIER, ...values, active: true });
     setSaving(false);
     if (result.ok) onCreated(result.row.id);
     else setErrors(result.errors);
