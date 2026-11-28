@@ -30,6 +30,14 @@ export const catalogLabels: Record<
     placeholder: "Ej. Balanza San Julián",
     href: `${CONFIG_ROUTE}/emisores`,
   },
+  units: {
+    title: "Unidades de negocio",
+    singular: "unidad de negocio",
+    create: "Nueva unidad",
+    description: "Negocios que se liquidan por separado. Cada emisor pertenece a una (provisional).",
+    placeholder: "Ej. San Julián",
+    href: `${CONFIG_ROUTE}/unidades`,
+  },
   products: {
     title: "Productos",
     singular: "producto",
@@ -40,7 +48,7 @@ export const catalogLabels: Record<
   },
 };
 
-export const CATALOG_ORDER: CatalogKind[] = ["campaigns", "sites", "issuers", "products"];
+export const CATALOG_ORDER: CatalogKind[] = ["campaigns", "units", "sites", "issuers", "products"];
 
 export function formatDate(value: string): string {
   if (!value) return "—";

@@ -12,6 +12,7 @@ import {
   Input,
   SearchInput,
   SegmentedControl,
+  Select,
   Spinner,
   Switch,
   TBody,
@@ -24,7 +25,7 @@ import {
   ToolbarSpacer,
   Tr,
 } from "@/shared/ui";
-import { normalizeName } from "../domain/rules";
+import { normalizeName, selectableOptions } from "../domain/rules";
 import type { FieldErrors, NamedCatalogKind, NamedRecord } from "../domain/types";
 import { CatalogHeader } from "./catalog-header";
 import { useCatalogs } from "./catalogs-store";
@@ -101,6 +102,7 @@ export function NamedCatalogPage({ kind }: { kind: NamedCatalogKind }) {
             <THead>
               <tr>
                 <Th>Nombre</Th>
+                {kind === "issuers" && <Th>Unidad de negocio</Th>}
                 <Th>Estado</Th>
                 <Th shrink>
                   <span className="sr-only">Acciones</span>
@@ -111,6 +113,9 @@ export function NamedCatalogPage({ kind }: { kind: NamedCatalogKind }) {
               {visible.map((row) => (
                 <Tr key={row.id} selected={row.id === highlight}>
                   <Td>{row.name}</Td>
+                  {kind === "issuers" && (
+                    <Td muted>{catalogs.units.find((unit) => unit.id === row.businessUnitId)?.name ?? "Sin unidad"}</Td>
+                  )}
                   <Td>
                     <Badge tone={row.active ? "success" : "neutral"} dot>
                       {row.active ? "Activo" : "Inactivo"}
@@ -154,7 +159,7 @@ export function NamedCatalogPage({ kind }: { kind: NamedCatalogKind }) {
           retireLabel="Desactivar"
           onClose={() => setRemoving(null)}
           onRemove={() => catalogs.remove(kind, removing.id)}
-          onRetire={() => catalogs.saveNamed(kind, { name: removing.name, active: false }, removing.id)}
+          onRetire={() => catalogs.saveNamed(kind, { name: removing.name, businessUnitId: removing.businessUnitId, active: false }, removing.id)}
         />
       )}
     </>
@@ -172,18 +177,19 @@ function NamedFormDialog({
   onClose: () => void;
   onSaved: (row: NamedRecord) => void;
 }) {
-  const { saveNamed } = useCatalogs();
+  const { saveNamed, units } = useCatalogs();
   const labels = catalogLabels[kind];
   const formId = `${kind}-form`;
   const [name, setName] = useState(record?.name ?? "");
   const [active, setActive] = useState(record?.active ?? true);
+  const [businessUnitId, setBusinessUnitId] = useState(record?.businessUnitId ?? "");
   const [errors, setErrors] = useState<FieldErrors<"name">>({});
   const [saving, setSaving] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
-    const result = await saveNamed(kind, { name, active }, record?.id);
+    const result = await saveNamed(kind, { name, active, businessUnitId }, record?.id);
     setSaving(false);
     if (result.ok) onSaved(result.row);
     else setErrors(result.errors);
@@ -217,6 +223,23 @@ function NamedFormDialog({
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
+        {kind === "issuers" && (
+          <Field
+            label="Unidad de negocio"
+            htmlFor={`${formId}-unit`}
+            optional
+            hint="Provisional: las boletas de este emisor se asignan a esta unidad hasta que INDAPO confirme la relación."
+          >
+            <Select id={`${formId}-unit`} value={businessUnitId} onChange={(event) => setBusinessUnitId(event.target.value)}>
+              <option value="">Sin unidad</option>
+              {selectableOptions(units, businessUnitId).map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         {record && (
           <Switch
             label="Activo"

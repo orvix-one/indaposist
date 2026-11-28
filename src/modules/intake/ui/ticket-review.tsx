@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, Plus, ScanSearch, Send } from "lucide-react";
+import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, MessageSquareWarning, Plus, ScanSearch, Send } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { currentUser } from "@/modules/access";
-import { campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
+import { businessUnitIdFor, campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
+import { CURRENCIES, currencySymbol, formatMoney } from "@/shared/money";
 import {
   Alert,
   Badge,
@@ -21,6 +22,7 @@ import {
   Mono,
   PageHeader,
   Radio,
+  SearchInput,
   Select,
   Switch,
   Textarea,
@@ -31,15 +33,19 @@ import {
 import {
   hasIssues,
   isEditable,
+  liquidQuantity,
   pendingVerification,
   setFieldValue,
+  ticketAmountCents,
   validateForSubmit,
   weightChecks,
   type SubmitIssues,
+  type TicketDecision,
   type WeightCheck,
 } from "../domain/rules";
-import type { FieldPath, Ticket, TicketFields } from "../domain/types";
-import type { SupplierField, SupplierInput } from "../domain/supplier";
+import { QUANTITY_UNITS, type Currency, type FieldPath, type QuantityUnit, type Ticket, type TicketFields } from "../domain/types";
+import { EMPTY_SUPPLIER, matchesSupplier, type SupplierField, type SupplierInput } from "../domain/supplier";
+import { RuaBadge } from "./supplier-form-page";
 import { useIntake } from "./intake-store";
 import { fieldId, fieldLabel, formatBusinessDate, formatKgExact, formatKgRaw, ticketStatusMeta } from "./labels";
 import { QualityTable } from "./quality-table";
@@ -48,7 +54,8 @@ import { TicketHistory } from "./ticket-history";
 import { useSuppliers } from "./suppliers-store";
 import styles from "./intake.module.css";
 
-export function TicketReview({ ticketId }: { ticketId: string }) {
+/* `children` permite que la ruta agregue secciones de otros módulos (por ejemplo, pagos) sin que recepción dependa de ellos. */
+export function TicketReview({ ticketId, children }: { ticketId: string; children?: ReactNode }) {
   const { tickets } = useIntake();
   const ticket = tickets.find((item) => item.id === ticketId);
 
@@ -69,11 +76,40 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
     );
   }
 
-  return <ReviewScreen key={ticket.id} ticket={ticket} />;
+  return (
+    <ReviewScreen key={ticket.id} ticket={ticket}>
+      {children}
+    </ReviewScreen>
+  );
 }
 
-function ReviewScreen({ ticket }: { ticket: Ticket }) {
-  const { saveDraft, submitForReview } = useIntake();
+const DECISIONS: Record<TicketDecision, { title: string; description: string; action: string; done: string }> = {
+  approved: {
+    title: "Aprobar boleta",
+    description: "La boleta queda bloqueada y disponible para registrar pagos.",
+    action: "Aprobar",
+    done: "Boleta aprobada",
+  },
+  observed: {
+    title: "Observar boleta",
+    description: "Vuelve a quedar editable para corregirla y reenviarla. Indica qué hay que corregir.",
+    action: "Observar",
+    done: "Boleta observada",
+  },
+  rejected: {
+    title: "Rechazar boleta",
+    description: "La boleta queda cerrada sin obligación de pago. Indica el motivo.",
+    action: "Rechazar",
+    done: "Boleta rechazada",
+  },
+};
+
+function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNode }) {
+  const { saveDraft, submitForReview, decideTicket } = useIntake();
+  const [decision, setDecision] = useState<TicketDecision | null>(null);
+  const [decisionComment, setDecisionComment] = useState("");
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decided, setDecided] = useState<TicketDecision | null>(null);
   const [fields, setFields] = useState<TicketFields>(ticket.fields);
   const [verified, setVerified] = useState<FieldPath[]>(ticket.verified);
   const [issues, setIssues] = useState<SubmitIssues | null>(null);
@@ -88,8 +124,10 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
   const liveIssues = issues ? validateForSubmit(ticket, fields, verified) : null;
   const errorCount = liveIssues ? Object.keys(liveIssues.fieldErrors).length : 0;
   const [creatingSupplier, setCreatingSupplier] = useState(false);
-  const { issuers, sites, campaigns, products } = useCatalogs();
+  const { issuers, sites, campaigns, products, units } = useCatalogs();
+  const unitName = units.find((unit) => unit.id === businessUnitIdFor(fields.issuerId, issuers))?.name;
   const { suppliers } = useSuppliers();
+  const [supplierQuery, setSupplierQuery] = useState("");
   const supplier = suppliers.find((row) => row.id === fields.supplierId);
   const issuerName = issuers.find((row) => row.id === fields.issuerId)?.name;
   const siteName = sites.find((row) => row.id === fields.siteId)?.name;
@@ -99,9 +137,13 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
       sites: selectableOptions(sites, fields.siteId),
       campaigns: selectableOptions(campaigns, fields.campaignId, (row) => campaignLabel(row, products)),
       products: selectableOptions(products, fields.productId),
-      suppliers: selectableOptions(suppliers, fields.supplierId, (row) => `${row.name} · ${row.taxId}`),
+      suppliers: selectableOptions(
+        suppliers.filter((row) => row.id === fields.supplierId || matchesSupplier(row, supplierQuery)),
+        fields.supplierId,
+        (row) => [row.name, row.taxId, row.rua].filter(Boolean).join(" · "),
+      ),
     }),
-    [issuers, sites, campaigns, products, suppliers, fields.issuerId, fields.siteId, fields.campaignId, fields.productId, fields.supplierId],
+    [issuers, sites, campaigns, products, suppliers, supplierQuery, fields.issuerId, fields.siteId, fields.campaignId, fields.productId, fields.supplierId],
   );
 
   const setValue = useCallback((path: FieldPath, value: string) => {
@@ -158,6 +200,24 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
     } else focusNextPending();
   };
 
+  const openDecision = (value: TicketDecision) => {
+    setDecision(value);
+    setDecisionComment("");
+    setDecisionError(null);
+  };
+
+  const confirmDecision = () => {
+    if (!decision) return;
+    const error = decideTicket(ticket.id, decision, decisionComment);
+    if (error) {
+      setDecisionError(error);
+      return;
+    }
+    setDecided(decision);
+    setDecision(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const submit = () => {
     submitForReview(ticket.id, fields, verified, comment);
     setDialogOpen(false);
@@ -185,6 +245,7 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
   }, [dirty]);
 
   const status = ticketStatusMeta[ticket.status];
+  const submitAmount = ticketAmountCents(fields);
   const lastObservation = [...ticket.history].reverse().find((entry) => entry.action === "observed");
 
   return (
@@ -222,12 +283,17 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
         <div className={styles.formPane}>
           {notice === "submitted" && (
             <Alert tone="success" title="Boleta enviada a revisión">
-              Supervisión puede aprobarla, observarla o rechazarla. Mientras tanto queda bloqueada para edición.
+              Administración puede aprobarla, observarla o rechazarla. Mientras tanto queda bloqueada para edición.
             </Alert>
           )}
           {notice !== "submitted" && ticket.status === "in_review" && (
             <Alert tone="info" title="En revisión">
-              La edición está bloqueada hasta que Supervisión la apruebe u observe.
+              La edición está bloqueada hasta que Administración la apruebe, observe o rechace.
+            </Alert>
+          )}
+          {decided && decided !== "observed" && decided === ticket.status && (
+            <Alert tone={decided === "approved" ? "success" : "danger"} title={DECISIONS[decided].done}>
+              {decided === "approved" ? "Ya puedes registrar sus pagos." : "La decisión quedó en el historial."}
             </Alert>
           )}
           {ticket.status === "observed" && (
@@ -252,6 +318,9 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
               <CardBody>
                 <FormGrid>
                   <ReviewField path="issuerId" options={options.issuers} />
+                  <Field label="Unidad de negocio" htmlFor="field-business-unit" hint="Según el emisor (provisional).">
+                    <Input id="field-business-unit" value={unitName ?? (fields.issuerId ? "Emisor sin unidad" : "Elige el emisor")} readOnly disabled />
+                  </Field>
                   <ReviewField path="siteId" options={options.sites} />
                   <ReviewField path="campaignId" options={options.campaigns} />
                   <ReviewField path="productId" options={options.products} />
@@ -268,15 +337,33 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
               <CardHeader title="Proveedor y transporte" />
               <CardBody>
                 <FormGrid>
+                  {editable && (
+                    <Field label="Buscar proveedor" htmlFor="supplier-search" optional className={formLayout.span2}>
+                      <SearchInput
+                        id="supplier-search"
+                        placeholder="Nombre, NIT, CI o RUA"
+                        value={supplierQuery}
+                        onChange={(event) => setSupplierQuery(event.target.value)}
+                      />
+                    </Field>
+                  )}
                   <ReviewField
                     path="supplierId"
                     options={options.suppliers}
                     className={formLayout.span2}
                     hint={
-                      editable && !fields.supplierId ? (
-                        <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden />} onClick={() => setCreatingSupplier(true)}>
-                          Crear proveedor
-                        </Button>
+                      supplier ? (
+                        <span className={styles.supplierHint}>
+                          <RuaBadge rua={supplier.rua} />
+                          {supplier.rua || "El proveedor no tiene RUA registrado."}
+                        </span>
+                      ) : editable ? (
+                        <span className={styles.supplierHint}>
+                          {supplierQuery && options.suppliers.length === 0 && "Ningún proveedor coincide."}
+                          <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden />} onClick={() => setCreatingSupplier(true)}>
+                            Crear proveedor
+                          </Button>
+                        </span>
                       ) : undefined
                     }
                   />
@@ -314,7 +401,11 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
             </Card>
 
             <OfficeCard fields={fields} setFields={setFields} errors={liveIssues?.fieldErrors ?? {}} />
+
+            <AmountCard fields={fields} setFields={setFields} setValue={setValue} />
           </fieldset>
+
+          {children}
 
           <Card>
             <CardHeader title="Historial" description="Quién hizo qué y cuándo." />
@@ -356,14 +447,68 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
               </Button>
             </div>
           )}
+
+          {ticket.status === "in_review" && currentUser.canDecideTickets && (
+            <div className={styles.actionBar}>
+              <div className={styles.actionStatus}>
+                <span>Pendiente de decisión</span>
+              </div>
+              <Button variant="danger" leadingIcon={<CircleX aria-hidden />} onClick={() => openDecision("rejected")}>
+                Rechazar
+              </Button>
+              <Button leadingIcon={<MessageSquareWarning aria-hidden />} onClick={() => openDecision("observed")}>
+                Observar
+              </Button>
+              <Button variant="primary" leadingIcon={<CircleCheck aria-hidden />} onClick={() => openDecision("approved")}>
+                Aprobar
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {decision && (
+        <Dialog
+          open
+          onClose={() => setDecision(null)}
+          title={DECISIONS[decision].title}
+          description={DECISIONS[decision].description}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setDecision(null)}>
+                Cancelar
+              </Button>
+              <Button variant={decision === "rejected" ? "danger" : "primary"} onClick={confirmDecision}>
+                {DECISIONS[decision].action}
+              </Button>
+            </>
+          }
+        >
+          <Field
+            label={decision === "approved" ? "Comentario" : "Motivo"}
+            htmlFor="decision-comment"
+            optional={decision === "approved"}
+            error={decisionError ?? undefined}
+          >
+            <Textarea
+              id="decision-comment"
+              autoFocus
+              invalid={Boolean(decisionError)}
+              value={decisionComment}
+              onChange={(event) => {
+                setDecisionComment(event.target.value);
+                setDecisionError(null);
+              }}
+            />
+          </Field>
+        </Dialog>
+      )}
 
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         title="Enviar a revisión"
-        description="Supervisión revisará la boleta. No podrás editarla hasta que la apruebe u observe."
+        description="Administración revisará la boleta. No podrás editarla hasta que la apruebe u observe."
         footer={
           <>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
@@ -387,12 +532,14 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
           <dt>Llegada a oficina</dt>
           <dd>{formatBusinessDate(fields.officeArrivalDate)}</dd>
           <dt>Peso líquido</dt>
-          <dd className={styles.summaryStrong}>{formatKgRaw(fields.liquidKg)} kg</dd>
+          <dd>{formatKgRaw(fields.liquidKg)} kg</dd>
+          <dt>Importe</dt>
+          <dd className={styles.summaryStrong}>{submitAmount === null ? "—" : formatMoney(submitAmount, fields.currency)}</dd>
         </dl>
         <Field label="Comentario" htmlFor="submit-comment" optional>
           <Textarea
             id="submit-comment"
-            placeholder="Contexto para Supervisión, si hace falta."
+            placeholder="Contexto para Administración, si hace falta."
             value={comment}
             onChange={(event) => setComment(event.target.value)}
           />
@@ -429,7 +576,7 @@ function CreateSupplierDialog({
 
   const submit = async () => {
     setSaving(true);
-    const result = await save({ ...values, active: true });
+    const result = await save({ ...EMPTY_SUPPLIER, ...values, active: true });
     setSaving(false);
     if (result.ok) onCreated(result.row.id);
     else setErrors(result.errors);
@@ -548,27 +695,85 @@ function OfficeCard({
               <ReviewField path="archiveLocation" placeholder="Archivador, carpeta o caja" className={styles.archiveLocation} />
             )}
           </div>
-          <Field label={fieldLabel("modality")} htmlFor={fieldId("modality")} optional>
+          <ReviewField path="notes" optional multiline placeholder="Acuerdos, diferencias con el original, pendientes…" className={formLayout.spanFull} />
+        </FormGrid>
+      </CardBody>
+    </Card>
+  );
+}
+
+const UNIT_LABELS: Record<QuantityUnit, { option: string; per: string }> = {
+  t: { option: "t", per: "tonelada" },
+  kg: { option: "kg", per: "kilogramo" },
+};
+
+function AmountCard({
+  fields,
+  setFields,
+  setValue,
+}: {
+  fields: TicketFields;
+  setFields: (update: (current: TicketFields) => TicketFields) => void;
+  setValue: (path: FieldPath, value: string) => void;
+}) {
+  const patch = (values: Partial<TicketFields>) => setFields((current) => ({ ...current, ...values }));
+  const fromLiquid = liquidQuantity(fields, fields.quantityUnit);
+  const amount = ticketAmountCents(fields);
+
+  return (
+    <Card>
+      <CardHeader title="Carga e importe" description="Lo que se le debe al proveedor. Los pagos se registran cuando la boleta está aprobada." />
+      <CardBody>
+        <FormGrid>
+          <div className={styles.priceRow}>
+            <ReviewField
+              path="quantity"
+              numeric
+              trailing={fields.quantityUnit}
+              hint={
+                fromLiquid && fromLiquid !== fields.quantity ? (
+                  <Button size="sm" variant="ghost" leadingIcon={<ArrowDownToLine aria-hidden />} onClick={() => setValue("quantity", fromLiquid)}>
+                    Usar peso líquido ({fromLiquid} {fields.quantityUnit})
+                  </Button>
+                ) : undefined
+              }
+            />
+            <Field label={fieldLabel("quantityUnit")} htmlFor={fieldId("quantityUnit")}>
+              <Select
+                id={fieldId("quantityUnit")}
+                value={fields.quantityUnit}
+                onChange={(event) => patch({ quantityUnit: event.target.value as QuantityUnit })}
+              >
+                {QUANTITY_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {UNIT_LABELS[unit].option}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className={styles.priceRow}>
+            <ReviewField path="price" numeric leading={currencySymbol[fields.currency]} hint={`Por ${UNIT_LABELS[fields.quantityUnit].per}.`} />
+            <Field label={fieldLabel("currency")} htmlFor={fieldId("currency")}>
+              <Select id={fieldId("currency")} value={fields.currency} onChange={(event) => patch({ currency: event.target.value as Currency })}>
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label={fieldLabel("modality")} htmlFor={fieldId("modality")} optional hint="Informativa: anticipo y cierre se definirán con Administración.">
             <div className={styles.radioRow} role="radiogroup" aria-label={fieldLabel("modality")} id={fieldId("modality")} tabIndex={-1}>
               <Radio name="modality" label="Abierta" checked={fields.modality === "open"} onChange={() => patch({ modality: "open" })} />
               <Radio name="modality" label="Cerrada" checked={fields.modality === "closed"} onChange={() => patch({ modality: "closed" })} />
             </div>
           </Field>
-          <div className={styles.priceRow}>
-            <ReviewField path="price" numeric optional leading={fields.currency === "USD" ? "$us" : "Bs"} hint="Por tonelada, informado." />
-            <Field label={fieldLabel("currency")} htmlFor={fieldId("currency")}>
-              <Select
-                id={fieldId("currency")}
-                value={fields.currency}
-                onChange={(event) => patch({ currency: event.target.value as TicketFields["currency"], exchangeRate: event.target.value === "BOB" ? "" : fields.exchangeRate })}
-              >
-                <option value="BOB">BOB</option>
-                <option value="USD">USD</option>
-              </Select>
-            </Field>
-          </div>
-          {fields.currency === "USD" && <ReviewField path="exchangeRate" numeric optional placeholder="6,96" hint="Bs por dólar, informado." />}
-          <ReviewField path="notes" optional multiline placeholder="Acuerdos, diferencias con el original, pendientes…" className={formLayout.spanFull} />
+          <dl className={cx(styles.summary, styles.amountSummary)}>
+            <dt>Importe</dt>
+            <dd className={styles.summaryStrong}>{amount === null ? "Completa carga y precio" : formatMoney(amount, fields.currency)}</dd>
+          </dl>
         </FormGrid>
       </CardBody>
     </Card>

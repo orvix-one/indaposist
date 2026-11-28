@@ -4,7 +4,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createMemoryRepository } from "@/modules/catalogs";
-import { validateSupplier, type Supplier, type SupplierField, type SupplierInput } from "../domain/supplier";
+import { cleanSupplier, validateSupplier, type Supplier, type SupplierField, type SupplierInput } from "../domain/supplier";
 import { seedSuppliers } from "../mock/supplier-seed";
 
 export type SupplierSaveResult = { ok: true; row: Supplier } | { ok: false; errors: Partial<Record<SupplierField, string>> };
@@ -47,7 +47,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
     async (input, id) => {
       const validation = validateSupplier(input, suppliers, id);
       if (!validation.ok) return validation;
-      const clean = { ...input, name: input.name.trim(), taxId: input.taxId.trim().replace(/\s+/g, " ") };
+      const clean = cleanSupplier(input);
       const row = id ? await repo.update(id, clean) : await repo.create(clean);
       await refresh();
       return { ok: true, row };

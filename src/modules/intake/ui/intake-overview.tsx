@@ -35,7 +35,7 @@ export function IntakeOverview() {
         <StatGrid>
           <Stat label="Borradores" icon={<FilePen aria-hidden />} value={stats.drafts} meta="Por completar y enviar" />
           <Stat label="Campos por verificar" icon={<ScanSearch aria-hidden />} value={stats.pending} meta="Sugerencias con baja confianza" />
-          <Stat label="En revisión" icon={<Send aria-hidden />} value={stats.inReview} meta="Esperando a Supervisión" />
+          <Stat label="En revisión" icon={<Send aria-hidden />} value={stats.inReview} meta="Esperando a Administración" />
           <Stat label="Líquido aprobado" icon={<Package aria-hidden />} value={formatKg(stats.approvedKg)} unit="kg" meta="Boletas aprobadas" />
         </StatGrid>
 

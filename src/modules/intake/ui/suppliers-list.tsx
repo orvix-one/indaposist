@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import {
   Badge,
   Card,
+  CellStack,
   EmptyState,
   Mono,
   PageHeader,
@@ -25,7 +26,8 @@ import {
   Tr,
   buttonClass,
 } from "@/shared/ui";
-import { normalizeTaxId } from "../domain/supplier";
+import { matchesSupplier } from "../domain/supplier";
+import { RuaBadge } from "./supplier-form-page";
 import { useSuppliers } from "./suppliers-store";
 import styles from "./intake.module.css";
 
@@ -42,16 +44,9 @@ export function SuppliersList() {
   const [page, setPage] = useState(0);
 
   const filtered = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase("es");
-    const taxNeedle = normalizeTaxId(query);
     return suppliers
       .filter((row) => filter === "all" || row.active === (filter === "active"))
-      .filter(
-        (row) =>
-          !needle ||
-          row.name.toLocaleLowerCase("es").includes(needle) ||
-          (taxNeedle && normalizeTaxId(row.taxId).includes(taxNeedle)),
-      )
+      .filter((row) => matchesSupplier(row, query))
       .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
   }, [suppliers, query, filter]);
 
@@ -80,7 +75,7 @@ export function SuppliersList() {
           <ToolbarGroup>
             <SearchInput
               controlSize="sm"
-              placeholder="Nombre, NIT o CI"
+              placeholder="Nombre, NIT, CI o RUA"
               aria-label="Buscar proveedores"
               value={query}
               onChange={(event) => {
@@ -125,6 +120,9 @@ export function SuppliersList() {
                 <tr>
                   <Th>Nombre o razón social</Th>
                   <Th>NIT / CI</Th>
+                  <Th>Procedencia</Th>
+                  <Th>Teléfono</Th>
+                  <Th>RUA</Th>
                   <Th>Estado</Th>
                 </tr>
               </THead>
@@ -141,6 +139,9 @@ export function SuppliersList() {
                       <Td muted>
                         <Mono>{row.taxId}</Mono>
                       </Td>
+                      <Td muted>{row.origin || "—"}</Td>
+                      <Td muted>{row.phone || "—"}</Td>
+                      <Td>{row.rua ? <CellStack primary={<RuaBadge rua={row.rua} />} secondary={row.rua} /> : <RuaBadge rua="" />}</Td>
                       <Td>
                         <Badge tone={row.active ? "success" : "neutral"} dot>
                           {row.active ? "Activo" : "Inactivo"}

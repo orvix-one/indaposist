@@ -1,6 +1,6 @@
 "use client";
 
-import { FileImage, FileText, RotateCw } from "lucide-react";
+import { FileImage, FileText, Merge, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useState } from "react";
@@ -24,6 +24,7 @@ import {
   Tr,
   buttonClass,
 } from "@/shared/ui";
+import { canMergeWithPrevious, pagesLabel } from "../domain/pages";
 import type { DocumentStatus, IntakeDocument, TicketFormat } from "../domain/types";
 import { ACCEPTED_TYPES, useIntake, type RejectedFile } from "./intake-store";
 import { documentStatusMeta, formatBytes, formatInstant } from "./labels";
@@ -41,7 +42,8 @@ const FILTERS: Record<Filter, (status: DocumentStatus) => boolean> = {
 
 export function UploadInbox() {
   const router = useRouter();
-  const { documents, tickets, uploadFiles, retryDocument, startManualEntry, discardDocument } = useIntake();
+  const { documents, tickets, uploadFiles, retryDocument, startManualEntry, discardDocument, mergeWithPrevious } = useIntake();
+  const [mergeError, setMergeError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [rejected, setRejected] = useState<RejectedFile[]>([]);
 
@@ -80,9 +82,24 @@ export function UploadInbox() {
         />
 
         <Alert tone="info" title="Lectura automática">
-          Cada página de un PDF se lee por separado y queda como un borrador para revisar con el documento al lado. Volver a subir el mismo
-          archivo, o una boleta ya cargada, la marca como duplicada. Nada se guarda: la bandeja se vacía al recargar.
+          Cada página de un PDF se lee por separado y queda como un borrador para revisar con el documento al lado. Si una boleta ocupa dos
+          páginas, únelas con «Unir con la anterior» y se vuelven a leer juntas. Volver a subir el mismo archivo, la misma página o una
+          boleta ya cargada la marca como duplicada. Nada se guarda: la bandeja se vacía al recargar.
         </Alert>
+
+        {mergeError && (
+          <Alert
+            tone="danger"
+            title="No se pudieron unir las páginas"
+            actions={
+              <Button size="sm" onClick={() => setMergeError(null)}>
+                Entendido
+              </Button>
+            }
+          >
+            {mergeError}
+          </Alert>
+        )}
 
         {rejected.length > 0 && (
           <Alert
@@ -165,6 +182,8 @@ export function UploadInbox() {
                         onManual={() => manual(doc)}
                         onRetry={() => retryDocument(doc.id)}
                         onDiscard={() => discardDocument(doc.id)}
+                        canMerge={canMergeWithPrevious(doc.id, documents, tickets).ok}
+                        onMerge={async () => setMergeError(await mergeWithPrevious(doc.id))}
                       />
                     ))}
                   </Fragment>
@@ -183,13 +202,13 @@ type FileGroup = { key: string; name: string; pageCount: number; docs: IntakeDoc
 function groupByFile(visible: IntakeDocument[], all: IntakeDocument[]): FileGroup[] {
   const groups = new Map<string, FileGroup>();
   for (const doc of visible) {
-    const key = doc.source ? `file:${doc.sha256}` : doc.id;
+    const key = doc.source ? `file:${doc.source.fileSha256}` : doc.id;
     const group = groups.get(key) ?? {
       key,
       name: doc.name,
       pageCount: doc.source?.pageCount ?? 1,
       docs: [],
-      all: doc.source ? all.filter((item) => item.source && item.sha256 === doc.sha256) : [doc],
+      all: doc.source ? all.filter((item) => item.source?.fileSha256 === doc.source!.fileSha256) : [doc],
     };
     group.docs.push(doc);
     groups.set(key, group);
@@ -213,7 +232,7 @@ function groupSummary(group: FileGroup): string {
     `${group.pageCount} páginas`,
     `${done} de ${group.all.length} procesadas`,
     first ? formatInstant(first.uploadedAt) : "",
-    `Huella ${group.all[0]?.sha256.slice(0, 10)}…`,
+    `Huella del archivo ${group.all[0]?.source?.fileSha256.slice(0, 10) ?? group.all[0]?.sha256.slice(0, 10)}…`,
     cost ? `Costo ${cost}` : "",
   ]
     .filter(Boolean)
@@ -236,6 +255,8 @@ function DocumentRow({
   onManual,
   onRetry,
   onDiscard,
+  canMerge,
+  onMerge,
 }: {
   doc: IntakeDocument;
   nested: boolean;
@@ -243,10 +264,17 @@ function DocumentRow({
   onManual: () => void;
   onRetry: () => void;
   onDiscard: () => void;
+  canMerge: boolean;
+  onMerge: () => void;
 }) {
   const Icon = doc.kind === "pdf" ? FileText : FileImage;
   const meta = documentStatusMeta[doc.status];
-  const title = nested && doc.source ? `Página ${doc.source.page} de ${doc.source.pageCount}` : doc.name;
+  const title =
+    nested && doc.source
+      ? doc.source.pages.length > 1
+        ? `Páginas ${doc.source.pages[0]}–${doc.source.pages[doc.source.pages.length - 1]} de ${doc.source.pageCount} (unidas)`
+        : `Página ${doc.source.page} de ${doc.source.pageCount}`
+      : doc.name;
   const detail =
     doc.status === "duplicate"
       ? doc.source
@@ -254,7 +282,7 @@ function DocumentRow({
         : `Mismo archivo que ${duplicateCode ?? "uno ya cargado"}: no se vuelve a procesar.`
       : doc.error
         ? doc.error
-        : (usageLabel(doc) ?? `${doc.kind === "pdf" ? "PDF" : "Imagen"} · ${formatBytes(doc.sizeBytes)} · ${formatInstant(doc.uploadedAt)}`);
+        : [usageLabel(doc) ?? `${doc.kind === "pdf" ? "PDF" : "Imagen"} · ${formatBytes(doc.sizeBytes)} · ${formatInstant(doc.uploadedAt)}`, `Huella ${doc.sha256.slice(0, 8)}…`].join(" · ");
   const canDiscard = doc.status !== "reviewed" && doc.status !== "processing";
 
   return (
@@ -279,6 +307,11 @@ function DocumentRow({
       </Td>
       <Td align="end">
         <span className={styles.rowActions}>
+          {canMerge && (
+            <Button size="sm" variant="ghost" leadingIcon={<Merge aria-hidden />} onClick={onMerge} title={doc.source ? `Unir con ${pagesLabel([doc.source.page - 1])}` : undefined}>
+              Unir con la anterior
+            </Button>
+          )}
           {canDiscard && (
             <Button size="sm" variant="ghost" onClick={onDiscard}>
               Descartar

@@ -1,4 +1,5 @@
-import type { FieldPath, QualityKey, Suggestions, Ticket, TicketFields, TicketStatus } from "./types.ts";
+import { divideRounded, formatScaled, parseScaled, productToCents } from "../../../shared/money.ts";
+import type { FieldPath, QualityKey, QuantityUnit, Suggestions, Ticket, TicketFields, TicketStatus } from "./types.ts";
 import { QUALITY_KEYS } from "./types.ts";
 
 export const CONFIDENCE_THRESHOLD = 0.85;
@@ -21,7 +22,27 @@ export const SUBMIT_REQUIRED: FieldPath[] = [
   "liquidKg",
   "officeArrivalDate",
   "documentType",
+  "quantity",
+  "price",
 ];
+
+export const QUANTITY_DECIMALS = 3;
+export const PRICE_DECIMALS = 2;
+
+/** Importe de la boleta en centavos de su moneda: carga × precio. Null si falta alguno o no es válido. */
+export function ticketAmountCents(fields: Pick<TicketFields, "quantity" | "price">): bigint | null {
+  const quantity = parseScaled(fields.quantity, QUANTITY_DECIMALS);
+  const price = parseScaled(fields.price, PRICE_DECIMALS);
+  if (quantity === null || price === null) return null;
+  return productToCents(quantity, QUANTITY_DECIMALS, price, PRICE_DECIMALS);
+}
+
+/** Peso líquido expresado en la unidad elegida, para usarlo como carga a pagar. */
+export function liquidQuantity(fields: Pick<TicketFields, "liquidKg">, unit: QuantityUnit): string | null {
+  const kg = parseScaled(fields.liquidKg, QUANTITY_DECIMALS);
+  if (kg === null) return null;
+  return formatScaled(unit === "kg" ? kg : divideRounded(kg, 1000n), QUANTITY_DECIMALS, 0);
+}
 
 const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   draft: ["in_review"],
@@ -33,6 +54,15 @@ const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
 
 export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
   return TRANSITIONS[from].includes(to);
+}
+
+export type TicketDecision = "approved" | "observed" | "rejected";
+
+/* Observar y rechazar exigen motivo; aprobar admite un comentario opcional. */
+export function validateDecision(from: TicketStatus, decision: TicketDecision, comment: string): string | null {
+  if (!canTransition(from, decision)) return "La boleta no está en revisión.";
+  if (decision !== "approved" && comment.trim() === "") return "Indica el motivo.";
+  return null;
 }
 
 export function isEditable(status: TicketStatus): boolean {
@@ -130,6 +160,18 @@ export function validateForSubmit(
   for (const path of numeric) {
     const raw = getFieldValue(fields, path);
     if (raw.trim() !== "" && parseDecimal(raw) === null) fieldErrors[path] = "Número no válido.";
+  }
+
+  const decimals: [FieldPath, number][] = [
+    ["quantity", QUANTITY_DECIMALS],
+    ["price", PRICE_DECIMALS],
+  ];
+  for (const [path, places] of decimals) {
+    const raw = getFieldValue(fields, path);
+    if (raw.trim() === "") continue;
+    const value = parseScaled(raw, places);
+    if (value === null) fieldErrors[path] = `Número no válido (hasta ${places} decimales).`;
+    else if (value === 0n) fieldErrors[path] = "Debe ser mayor que cero.";
   }
 
   const checks = weightChecks(fields);
