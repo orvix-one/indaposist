@@ -7,7 +7,7 @@ import { currentUser } from "@/modules/access";
 import { useCatalogs, type CatalogKind } from "@/modules/catalogs";
 import { toPageImages } from "@/shared/document-pages";
 import { emptyFields } from "../domain/fields";
-import { canTransition, findDuplicateTicket, isEditable } from "../domain/rules";
+import { canTransition, findDuplicateTicket, isEditable, validateDecision, type TicketDecision } from "../domain/rules";
 import type { FieldPath, HistoryEntry, IntakeDocument, Ticket, TicketFields, TicketReadings } from "../domain/types";
 import { seedState } from "../mock/seed";
 import { requestExtraction } from "../ocr/client";
@@ -87,6 +87,7 @@ type IntakeContextValue = {
   discardDocument: (id: string) => void;
   saveDraft: (id: string, fields: TicketFields, verified: FieldPath[]) => void;
   submitForReview: (id: string, fields: TicketFields, verified: FieldPath[], comment: string) => void;
+  decideTicket: (id: string, decision: TicketDecision, comment: string) => string | null;
 };
 
 const IntakeContext = createContext<IntakeContextValue | null>(null);
@@ -340,6 +341,28 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
     if (doc) dispatch({ type: "update-document", id: doc.id, patch: { status: "reviewed" } });
   }, []);
 
+  const decideTicket = useCallback((id: string, decision: TicketDecision, comment: string) => {
+    const ticket = stateRef.current.tickets.find((item) => item.id === id);
+    if (!ticket) return "Boleta no encontrada.";
+    if (!currentUser.canDecideTickets) return "No tienes permiso para resolver boletas.";
+    const error = validateDecision(ticket.status, decision, comment);
+    if (error) return error;
+    dispatch({
+      type: "update-ticket",
+      id,
+      update: (current) =>
+        canTransition(current.status, decision)
+          ? {
+              ...current,
+              status: decision,
+              updatedAt: new Date().toISOString(),
+              history: [...current.history, entry(decision, { from: current.status, to: decision, comment: comment.trim() || undefined })],
+            }
+          : current,
+    });
+    return null;
+  }, []);
+
   const value = useMemo(
     () => ({
       tickets: state.tickets,
@@ -351,8 +374,9 @@ export function IntakeProvider({ children }: { children: ReactNode }) {
       discardDocument,
       saveDraft,
       submitForReview,
+      decideTicket,
     }),
-    [state.tickets, state.documents, uploadFiles, retryDocument, startManualEntry, removeDocument, discardDocument, saveDraft, submitForReview],
+    [state.tickets, state.documents, uploadFiles, retryDocument, startManualEntry, removeDocument, discardDocument, saveDraft, submitForReview, decideTicket],
   );
 
   return <IntakeContext.Provider value={value}>{children}</IntakeContext.Provider>;

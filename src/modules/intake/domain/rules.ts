@@ -35,6 +35,15 @@ export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
+export type TicketDecision = "approved" | "observed" | "rejected";
+
+/* Observar y rechazar exigen motivo; aprobar admite un comentario opcional. */
+export function validateDecision(from: TicketStatus, decision: TicketDecision, comment: string): string | null {
+  if (!canTransition(from, decision)) return "La boleta no está en revisión.";
+  if (decision !== "approved" && comment.trim() === "") return "Indica el motivo.";
+  return null;
+}
+
 export function isEditable(status: TicketStatus): boolean {
   return status === "draft" || status === "observed";
 }

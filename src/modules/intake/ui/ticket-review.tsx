@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, Plus, ScanSearch, Send } from "lucide-react";
+import { ArrowDownToLine, ArrowRight, CircleCheck, CircleX, FileSearch, MessageSquareWarning, Plus, ScanSearch, Send } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { currentUser } from "@/modules/access";
 import { campaignLabel, selectableOptions, useCatalogs } from "@/modules/catalogs";
 import {
@@ -36,6 +36,7 @@ import {
   validateForSubmit,
   weightChecks,
   type SubmitIssues,
+  type TicketDecision,
   type WeightCheck,
 } from "../domain/rules";
 import type { FieldPath, Ticket, TicketFields } from "../domain/types";
@@ -48,7 +49,8 @@ import { TicketHistory } from "./ticket-history";
 import { useSuppliers } from "./suppliers-store";
 import styles from "./intake.module.css";
 
-export function TicketReview({ ticketId }: { ticketId: string }) {
+/* `children` permite que la ruta agregue secciones de otros módulos (por ejemplo, pagos) sin que recepción dependa de ellos. */
+export function TicketReview({ ticketId, children }: { ticketId: string; children?: ReactNode }) {
   const { tickets } = useIntake();
   const ticket = tickets.find((item) => item.id === ticketId);
 
@@ -69,11 +71,40 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
     );
   }
 
-  return <ReviewScreen key={ticket.id} ticket={ticket} />;
+  return (
+    <ReviewScreen key={ticket.id} ticket={ticket}>
+      {children}
+    </ReviewScreen>
+  );
 }
 
-function ReviewScreen({ ticket }: { ticket: Ticket }) {
-  const { saveDraft, submitForReview } = useIntake();
+const DECISIONS: Record<TicketDecision, { title: string; description: string; action: string; done: string }> = {
+  approved: {
+    title: "Aprobar boleta",
+    description: "La boleta queda bloqueada y disponible para registrar pagos.",
+    action: "Aprobar",
+    done: "Boleta aprobada",
+  },
+  observed: {
+    title: "Observar boleta",
+    description: "Vuelve a quedar editable para corregirla y reenviarla. Indica qué hay que corregir.",
+    action: "Observar",
+    done: "Boleta observada",
+  },
+  rejected: {
+    title: "Rechazar boleta",
+    description: "La boleta queda cerrada sin obligación de pago. Indica el motivo.",
+    action: "Rechazar",
+    done: "Boleta rechazada",
+  },
+};
+
+function ReviewScreen({ ticket, children }: { ticket: Ticket; children?: ReactNode }) {
+  const { saveDraft, submitForReview, decideTicket } = useIntake();
+  const [decision, setDecision] = useState<TicketDecision | null>(null);
+  const [decisionComment, setDecisionComment] = useState("");
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decided, setDecided] = useState<TicketDecision | null>(null);
   const [fields, setFields] = useState<TicketFields>(ticket.fields);
   const [verified, setVerified] = useState<FieldPath[]>(ticket.verified);
   const [issues, setIssues] = useState<SubmitIssues | null>(null);
@@ -158,6 +189,24 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
     } else focusNextPending();
   };
 
+  const openDecision = (value: TicketDecision) => {
+    setDecision(value);
+    setDecisionComment("");
+    setDecisionError(null);
+  };
+
+  const confirmDecision = () => {
+    if (!decision) return;
+    const error = decideTicket(ticket.id, decision, decisionComment);
+    if (error) {
+      setDecisionError(error);
+      return;
+    }
+    setDecided(decision);
+    setDecision(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const submit = () => {
     submitForReview(ticket.id, fields, verified, comment);
     setDialogOpen(false);
@@ -228,6 +277,11 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
           {notice !== "submitted" && ticket.status === "in_review" && (
             <Alert tone="info" title="En revisión">
               La edición está bloqueada hasta que Administración la apruebe, observe o rechace.
+            </Alert>
+          )}
+          {decided && decided !== "observed" && decided === ticket.status && (
+            <Alert tone={decided === "approved" ? "success" : "danger"} title={DECISIONS[decided].done}>
+              {decided === "approved" ? "Ya puedes registrar sus pagos." : "La decisión quedó en el historial."}
             </Alert>
           )}
           {ticket.status === "observed" && (
@@ -316,6 +370,8 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
             <OfficeCard fields={fields} setFields={setFields} errors={liveIssues?.fieldErrors ?? {}} />
           </fieldset>
 
+          {children}
+
           <Card>
             <CardHeader title="Historial" description="Quién hizo qué y cuándo." />
             <CardBody>
@@ -356,8 +412,62 @@ function ReviewScreen({ ticket }: { ticket: Ticket }) {
               </Button>
             </div>
           )}
+
+          {ticket.status === "in_review" && currentUser.canDecideTickets && (
+            <div className={styles.actionBar}>
+              <div className={styles.actionStatus}>
+                <span>Pendiente de decisión</span>
+              </div>
+              <Button variant="danger" leadingIcon={<CircleX aria-hidden />} onClick={() => openDecision("rejected")}>
+                Rechazar
+              </Button>
+              <Button leadingIcon={<MessageSquareWarning aria-hidden />} onClick={() => openDecision("observed")}>
+                Observar
+              </Button>
+              <Button variant="primary" leadingIcon={<CircleCheck aria-hidden />} onClick={() => openDecision("approved")}>
+                Aprobar
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {decision && (
+        <Dialog
+          open
+          onClose={() => setDecision(null)}
+          title={DECISIONS[decision].title}
+          description={DECISIONS[decision].description}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setDecision(null)}>
+                Cancelar
+              </Button>
+              <Button variant={decision === "rejected" ? "danger" : "primary"} onClick={confirmDecision}>
+                {DECISIONS[decision].action}
+              </Button>
+            </>
+          }
+        >
+          <Field
+            label={decision === "approved" ? "Comentario" : "Motivo"}
+            htmlFor="decision-comment"
+            optional={decision === "approved"}
+            error={decisionError ?? undefined}
+          >
+            <Textarea
+              id="decision-comment"
+              autoFocus
+              invalid={Boolean(decisionError)}
+              value={decisionComment}
+              onChange={(event) => {
+                setDecisionComment(event.target.value);
+                setDecisionError(null);
+              }}
+            />
+          </Field>
+        </Dialog>
+      )}
 
       <Dialog
         open={dialogOpen}

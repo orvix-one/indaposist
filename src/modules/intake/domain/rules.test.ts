@@ -6,6 +6,7 @@ import {
   parseDecimal,
   pendingVerification,
   setFieldValue,
+  validateDecision,
   validateForSubmit,
   weightChecks,
 } from "./rules.ts";
@@ -112,6 +113,23 @@ describe("canTransition", () => {
 
   it("impide saltar de borrador a aprobada", () => {
     assert.equal(canTransition("draft", "approved"), false);
+  });
+});
+
+describe("validateDecision", () => {
+  it("aprueba una boleta en revisión sin comentario", () => {
+    assert.equal(validateDecision("in_review", "approved", ""), null);
+  });
+
+  it("exige motivo para observar o rechazar", () => {
+    assert.ok(validateDecision("in_review", "observed", "  "));
+    assert.ok(validateDecision("in_review", "rejected", ""));
+    assert.equal(validateDecision("in_review", "rejected", "Boleta de otra campaña"), null);
+  });
+
+  it("solo decide sobre boletas en revisión", () => {
+    assert.ok(validateDecision("draft", "approved", ""));
+    assert.ok(validateDecision("approved", "rejected", "Error"));
   });
 });
 
